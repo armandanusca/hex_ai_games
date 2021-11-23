@@ -1,0 +1,61 @@
+1774 14642 2.0000343322753906
+Best move suggested:  (3, 7)
+1840 14162 2.0002198219299316
+Best move suggested:  (3, 6)
+1704 13690 2.0006003379821777
+Best move suggested:  (0, 3)
+1682 13226 2.000223159790039
+Best move suggested:  (2, 6)
+1656 12770 2.0011065006256104
+Best move suggested:  (5, 5)
+1758 12322 2.001105308532715
+Best move suggested:  (2, 9)
+1780 11882 2.000462770462036
+Best move suggested:  (4, 7)
+1769 11450 2.0001449584960938
+Best move suggested:  (7, 7)
+1723 11026 2.000786781311035
+Best move suggested:  (5, 3)
+1770 10610 2.0014126300811768
+Best move suggested:  (1, 5)
+1778 10202 2.000349521636963
+Best move suggested:  (8, 3)
+1840 9802 2.0004382133483887
+Best move suggested:  (6, 9)
+1800 9410 2.0008089542388916
+Best move suggested:  (9, 5)
+1934 9026 2.0015604496002197
+Best move suggested:  (7, 3)
+1736 8650 2.000696897506714
+Best move suggested:  (2, 1)
+1868 8282 2.0004520416259766
+Best move suggested:  (6, 4)
+2026 7922 2.0005414485931396
+Best move suggested:  (1, 7)
+1983 7570 2.0007641315460205
+Best move suggested:  (6, 0)
+2002 7226 2.000321388244629
+Best move suggested:  (10, 0)
+1995 6890 2.0005574226379395
+Best move suggested:  (8, 8)
+2003 6562 2.000622510910034
+Best move suggested:  (4, 5)
+2056 6242 2.0007550716400146
+Best move suggested:  (10, 9)
+2114 5930 2.000854015350342
+Best move suggested:  (4, 8)
+2005 5626 2.000206470489502
+Best move suggested:  (9, 1)
+2187 5330 2.0005030632019043
+Best move suggested:  (2, 0)
+2166 5042 2.000476360321045
+Best move suggested:  (2, 7)
+2228 4762 2.0004968643188477
+Best move suggested:  (6, 6)
+2170 4815 2.000420331954956
+Best move suggested:  (1, 6)
+2173 4226 2.0001847743988037
+Best move suggested:  (0, 5)
+2375 3846 2.0001375675201416
+Best move suggested:  (8, 2)
+NOTICE: Fewer than two agents specified. Missing players will be replaced with the default agent.

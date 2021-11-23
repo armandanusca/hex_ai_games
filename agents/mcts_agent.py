@@ -13,8 +13,7 @@ class MCTSAgent():
     HOST = "127.0.0.1"
     PORT = 1234
     time_limit = 2
-    game_state = GameState(11)
-    agent = UctMctsAgent(game_state)
+    agent = None
 
     def __init__(self, board_size=11):
         self.s = socket.socket(
@@ -27,6 +26,7 @@ class MCTSAgent():
         self.board = []
         self.colour = ""
         self.turn_count = 0
+        self.agent = UctMctsAgent(GameState(board_size))
 
     def run(self):
         """Reads data until it receives an END message or the socket closes."""
@@ -102,8 +102,8 @@ class MCTSAgent():
             if self.test_swap(action):
                 self.s.sendall(bytes("SWAP\n", "utf-8"))
                 self.colour = self.opp_colour()
-                self.game_state = GameState(11)
-                self.game_state.play((action[0],action[1]))
+                self.agent = MCTSAgent(GameState(11))
+                self.agent.move((action[0],action[1]))
             else:
                 self.choose_move_test()
         else:

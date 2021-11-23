@@ -1,6 +1,8 @@
 import socket
 from random import choice
 from time import sleep
+from gamestate import GameState
+from lib_mcst import UctMctsAgent
 
 
 class MCTSAgent():
@@ -10,6 +12,9 @@ class MCTSAgent():
 
     HOST = "127.0.0.1"
     PORT = 1234
+    time_limit = 2
+    game_state = GameState(11)
+    agent = UctMctsAgent(game_state)
 
     def __init__(self, board_size=11):
         self.s = socket.socket(
@@ -69,8 +74,8 @@ class MCTSAgent():
                 elif s[3] == self.colour:
                     action = [int(x) for x in s[1].split(",")]
                     self.board[action[0]][action[1]] = self.opp_colour()
+                    self.agent.move((action[0],action[1]))
                     self.make_move(action)
-
         return False
 
     def test_swap(self, action):
@@ -79,29 +84,30 @@ class MCTSAgent():
             return True
         return False
 
-    def choose_move(self):
-        choices = []
-        for i in range(self.board_size):
-            for j in range(self.board_size):
-                if self.board[i][j] == 0:
-                    choices.append((i, j))
-        pos = choice(choices)
-        self.s.sendall(bytes(f"{pos[0]},{pos[1]}\n", "utf-8"))
-        self.board[pos[0]][pos[1]] = self.colour
+    def choose_move_test(self):
+        self.agent.search(self.time_limit)
+        num_rollouts, node_count, run_time = self.agent.statistics()
+        print(num_rollouts, node_count, run_time)
+        move = self.agent.best_move()  # the move is tuple like (3, 1)
+        print("Best move suggested: ", move)
+        self.agent.move(move)
+        self.s.sendall(bytes(f"{move[0]},{move[1]}\n", "utf-8"))
+        self.board[move[0]][move[1]] = self.colour
 
     def make_move(self, action=None):
         """Makes a random move from the available pool of choices. If it can
         swap, chooses to do so 50% of the time.
-        """
-
-        # print(f"{self.colour} making move")
+        """            
         if self.colour == "B" and self.turn_count == 0:
             if self.test_swap(action):
                 self.s.sendall(bytes("SWAP\n", "utf-8"))
+                self.colour = self.opp_colour()
+                self.game_state = GameState(11)
+                self.game_state.play((action[0],action[1]))
             else:
-                self.choose_move()
+                self.choose_move_test()
         else:
-            self.choose_move()
+            self.choose_move_test()
         self.turn_count += 1
 
     def opp_colour(self):

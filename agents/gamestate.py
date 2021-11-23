@@ -9,7 +9,7 @@ class GameState:
     the board and the current turn. Also provides functions for playing game.
     """
     # dictionary associating numbers with players
-    # PLAYERS = {"none": 0, "white": 1, "black": 2}
+    # PLAYERS = {"none": 0, "red": 1, "blue": 2}
 
     # move value of -1 indicates the game has ended so no move is possible
     # GAME_OVER = -1
@@ -22,21 +22,21 @@ class GameState:
 
     def __init__(self, size):
         """
-        Initialize the game board and give white first turn.
+        Initialize the game board and give red first turn.
         Also create our union find structures for win checking.
         Args:
             size (int): The board size
         """
         self.size = size
-        self.to_play = GameMeta.PLAYERS['white']
+        self.to_play = GameMeta.PLAYERS['red']
         self.board = zeros((size, size))
         self.board = int_(self.board)
-        self.white_played = 0
-        self.black_played = 0
-        self.white_groups = UnionFind()
-        self.black_groups = UnionFind()
-        self.white_groups.set_ignored_elements([GameMeta.EDGE1, GameMeta.EDGE2])
-        self.black_groups.set_ignored_elements([GameMeta.EDGE1, GameMeta.EDGE2])
+        self.red_played = 0
+        self.blue_played = 0
+        self.red_groups = UnionFind()
+        self.blue_groups = UnionFind()
+        self.red_groups.set_ignored_elements([GameMeta.EDGE1, GameMeta.EDGE2])
+        self.blue_groups.set_ignored_elements([GameMeta.EDGE1, GameMeta.EDGE2])
 
     def play(self, cell: tuple) -> None:
         """
@@ -44,69 +44,69 @@ class GameState:
         Args:
             cell (tuple): row and column of the cell
         """
-        if self.to_play == GameMeta.PLAYERS['white']:
-            self.place_white(cell)
-            self.to_play = GameMeta.PLAYERS['black']
-        elif self.to_play == GameMeta.PLAYERS['black']:
-            self.place_black(cell)
-            self.to_play = GameMeta.PLAYERS['white']
+        if self.to_play == GameMeta.PLAYERS['red']:
+            self.place_red(cell)
+            self.to_play = GameMeta.PLAYERS['blue']
+        elif self.to_play == GameMeta.PLAYERS['blue']:
+            self.place_blue(cell)
+            self.to_play = GameMeta.PLAYERS['red']
 
     def get_num_played(self) -> dict:
-        return {'white': self.white_played, 'black': self.black_played}
+        return {'red': self.red_played, 'blue': self.blue_played}
 
-    def get_white_groups(self) -> dict:
+    def get_red_groups(self) -> dict:
         """
-        Returns (dict): group of white groups for unionfind check
+        Returns (dict): group of red groups for unionfind check
         """
-        return self.white_groups.get_groups()
+        return self.red_groups.get_groups()
 
-    def get_black_groups(self) -> dict:
+    def get_blue_groups(self) -> dict:
         """
-        Returns (dict): group of white groups for unionfind check
+        Returns (dict): group of red groups for unionfind check
         """
-        return self.black_groups.get_groups()
+        return self.blue_groups.get_groups()
 
-    def place_white(self, cell: tuple) -> None:
+    def place_red(self, cell: tuple) -> None:
         """
-        Place a white stone regardless of whose turn it is.
+        Place a red stone regardless of whose turn it is.
         Args:
             cell (tuple): row and column of the cell
         """
         if self.board[cell] == GameMeta.PLAYERS['none']:
-            self.board[cell] = GameMeta.PLAYERS['white']
-            self.white_played += 1
+            self.board[cell] = GameMeta.PLAYERS['red']
+            self.red_played += 1
         else:
             raise ValueError("Cell occupied")
-        # if the placed cell touches a white edge connect it appropriately
+        # if the placed cell touches a red edge connect it appropriately
         if cell[0] == 0:
-            self.white_groups.join(GameMeta.EDGE1, cell)
+            self.red_groups.join(GameMeta.EDGE1, cell)
         if cell[0] == self.size - 1:
-            self.white_groups.join(GameMeta.EDGE2, cell)
-        # join any groups connected by the new white stone
+            self.red_groups.join(GameMeta.EDGE2, cell)
+        # join any groups connected by the new red stone
         for n in self.neighbors(cell):
-            if self.board[n] == GameMeta.PLAYERS['white']:
-                self.white_groups.join(n, cell)
+            if self.board[n] == GameMeta.PLAYERS['red']:
+                self.red_groups.join(n, cell)
 
-    def place_black(self, cell: tuple) -> None:
+    def place_blue(self, cell: tuple) -> None:
         """
-        Place a black stone regardless of whose turn it is.
+        Place a blue stone regardless of whose turn it is.
         Args:
             cell (tuple): row and column of the cell
         """
         if self.board[cell] == GameMeta.PLAYERS['none']:
-            self.board[cell] = GameMeta.PLAYERS['black']
-            self.black_played += 1
+            self.board[cell] = GameMeta.PLAYERS['blue']
+            self.blue_played += 1
         else:
             raise ValueError("Cell occupied")
-        # if the placed cell touches a black edge connect it appropriately
+        # if the placed cell touches a blue edge connect it appropriately
         if cell[1] == 0:
-            self.black_groups.join(GameMeta.EDGE1, cell)
+            self.blue_groups.join(GameMeta.EDGE1, cell)
         if cell[1] == self.size - 1:
-            self.black_groups.join(GameMeta.EDGE2, cell)
-        # join any groups connected by the new black stone
+            self.blue_groups.join(GameMeta.EDGE2, cell)
+        # join any groups connected by the new blue stone
         for n in self.neighbors(cell):
-            if self.board[n] == GameMeta.PLAYERS['black']:
-                self.black_groups.join(n, cell)
+            if self.board[n] == GameMeta.PLAYERS['blue']:
+                self.blue_groups.join(n, cell)
              
     def turn(self) -> int:
         """
@@ -131,10 +131,10 @@ class GameState:
         Return a number corresponding to the winning player,
         or none if the game is not over.
         """
-        if self.white_groups.connected(GameMeta.EDGE1, GameMeta.EDGE2):
-            return GameMeta.PLAYERS['white']
-        elif self.black_groups.connected(GameMeta.EDGE1, GameMeta.EDGE2):
-            return GameMeta.PLAYERS['black']
+        if self.red_groups.connected(GameMeta.EDGE1, GameMeta.EDGE2):
+            return GameMeta.PLAYERS['red']
+        elif self.blue_groups.connected(GameMeta.EDGE1, GameMeta.EDGE2):
+            return GameMeta.PLAYERS['blue']
         else:
             return GameMeta.PLAYERS['none']
 

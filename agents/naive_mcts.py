@@ -10,19 +10,31 @@ from meta import GameMeta, MCTSMeta
 
 class Node:
     """
-    Node for the MCTS. Stores the move applied to reach this node from its parent,
-    stats for the associated game position, children, parent and outcome
-    (outcome==none unless the position ends the game).
-    Args:
-        move:
-        parent:
-        N (int): times this position was visited
-        Q (int): average reward (wins-losses) from this position
-        Q_RAVE (int): times this move has been critical in a rollout
-        N_RAVE (int): times this move has appeared in a rollout
-        children (dict): dictionary of successive nodes
-        outcome (int): If node is a leaf, then outcome indicates
-                       the winner, else None
+    A class to represent a node from the Game Tree. It is used for Monte Carlo Tree Search.
+    It contains latest move applied from parent to current node, performance metrics,
+    parent node, children nodes and outcome.
+    ...
+
+    Attributes
+    ----------
+    move : tuple
+        move which lead from parent to current node
+    parent : Node
+        parent node
+    children : dict
+        dictionary of all possible moves from the current node
+    outcome: int
+        if node is a leaf, then outcome is equal to numeric representation
+        of the winner. None otherwise
+    counter_visits: int
+        times this position was visited
+    reward_average: int
+        average reward (wins-losses) from this position
+
+    Methods
+    -------
+    add_children(children: dict):
+        Add a list of nodes to the children of this node.
     """
 
     def __init__(self, move: tuple = None, parent: object = None):
@@ -30,57 +42,112 @@ class Node:
         Initialize a new node with optional move and parent and initially empty
         children list and rollout statistics and unspecified outcome.
 
+        Parameters:
+                move (tuple): the move that generated the current node
+                parent (Node): parent node
         """
         self.move = move
         self.parent = parent
-        self.N = 0  # times this position was visited
-        self.Q = 0  # average reward (wins-losses) from this position
-        self.Q_RAVE = 0  # times this move has been critical in a rollout
-        self.N_RAVE = 0  # times this move has appeared in a rollout
         self.children = {}
         self.outcome = GameMeta.PLAYERS['none']
+
+        # performance metrics
+        self.counter_visits = 0  # times this position was visited
+        self.reward_average = 0  # average reward (wins-losses) from this position
 
     def add_children(self, children: dict) -> None:
         """
         Add a list of nodes to the children of this node.
-
         """
         for child in children:
             self.children[child.move] = child
 
     @property
     def value(self, explore: float = MCTSMeta.EXPLORATION):
-        """
-        Calculate the UCT value of this node relative to its parent, the parameter
-        "explore" specifies how much the value should favor nodes that have
-        yet to be thoroughly explored versus nodes that seem to have a high win
-        rate.
-        Currently explore is set to 0.5.
+        '''
+        Calculate the Upper Confidence bounds applied to Trees(UCT) value 
+        of this node relative to its parent
 
-        """
-        # if the node is not visited, set the value as infinity. Nodes with no visits are on priority
-        # (lambda: print("a"), lambda: print("b"))[test==true]()
-        if self.N == 0:
+            Parameters:
+                    explore (float): how much the value should favor nodes 
+                                    that have yet to be thoroughly explored 
+                                    versus nodes that seem to have a high win rate
+
+            Returns:
+                    (float): UCT value
+        '''
+
+        if self.counter_visits == 0:
             return 0 if explore == 0 else GameMeta.INF
         else:
-            return self.Q / self.N + explore * sqrt(2 * log(self.parent.N) / self.N)  # exploitation + exploration
+            # exploitation + exploration formula
+            return self.reward_average / self.counter_visits + explore * sqrt(
+                2 * log(self.parent.counter_visits) / self.counter_visits)
 
 
-class UctMctsAgent:
+class NaiveMCTSEngine:
     """
-    Basic no frills implementation of an agent that preforms MCTS for hex.
-    Attributes:
-        root_state (GameState): Game simulator that helps us to understand the game situation
-        root (Node): Root of the tree search
-        run_time (int): time per each run
-        node_count (int): the whole nodes in tree
-        num_rollouts (int): The number of rollouts for each search
-        EXPLORATION (int): specifies how much the value should favor
-                           nodes that have yet to be thoroughly explored versus nodes
-                           that seem to have a high win rate.
+    Implementation of an agent that performs MCTS. It is used for Monte Carlo Tree Search.
+    It contains latest move applied from parent to current node, performance metrics,
+    parent node, children nodes and outcome.
+    ...
+
+    Attributes
+    ----------
+    root_state : GameState
+        object to store the current game situation
+    root : Node
+        root of the tree search
+    node_count : int
+        the number of nodes in a tree
+    run_time: int
+        time taken for each run
+    num_rollouts: int
+        the number of rollouts for each search
+    exploration: int
+        specifies how much the value should favor nodes 
+        that have yet to be thoroughly explored versus nodes
+        that seem to have a high win rate
+
+    Methods
+    -------
+    search(time_budget: int):
+        Search and update the search tree for a
+        specified amount of time in seconds.
+    select_node():
+        Select a node in the tree to preform a single simulation from.
+    expand(parent: Node, state: GameState):
+        Generate the children of the passed "parent" node based on the available
+        moves in the passed gamestate and add them to the tree.
+    roll_out(state: GameState):
+        Simulate an entirely random game from the passed state and return the winning
+        player.
+    backup(node: Node, turn: int, outcome: int):
+        Update the node statistics on the path from the passed node to root to reflect
+        the outcome of a randomly simulated playout.
+    best_move():
+        Return the best move according to the current tree.
+    move(move: tuple):
+        Make the passed move and update the tree appropriately.
+    set_gamestate(state: GameState):
+        Set the root_state of the tree to the passed gamestate, this clears all
+        the information stored in the tree since none of it applies to the new
+        state.
+    statistics():
+        Getter for performance metrics
+    tree_size():
+        Count nodes in tree by BFS.
     """
 
     def __init__(self, state=GameState(11)):
+        """
+        Initialize a new node with optional move and parent and initially empty
+        children list and rollout statistics and unspecified outcome.
+
+        Parameters:
+                move (tuple): the move that generated the current node
+                parent (Node): parent node
+        """
         self.root_state = deepcopy(state)
         self.root = Node()
         self.run_time = 0
@@ -91,7 +158,6 @@ class UctMctsAgent:
         """
         Search and update the search tree for a
         specified amount of time in seconds.
-
         """
         start_time = time()
         num_rollouts = 0
@@ -106,13 +172,12 @@ class UctMctsAgent:
         run_time = time() - start_time
         node_count = self.tree_size()
         self.run_time = run_time
-        self.node_count = node_count
-        self.num_rollouts = num_rollouts
+        self.counter_visitsode_count = node_count
+        self.counter_visitsum_rollouts = num_rollouts
 
     def select_node(self) -> tuple:
         """
         Select a node in the tree to preform a single simulation from.
-
         """
         node = self.root
         state = deepcopy(self.root_state)
@@ -147,7 +212,6 @@ class UctMctsAgent:
 
         Returns:
             bool: returns false If node is leaf (the game has ended).
-
         """
         children = []
         if state.winner != GameMeta.PLAYERS['none']:
@@ -171,7 +235,6 @@ class UctMctsAgent:
 
         Returns:
             int: winner of the game
-
         """
         moves = state.moves()  # Get a list of all possible moves in current state of the game
 
@@ -195,7 +258,6 @@ class UctMctsAgent:
 
         Returns:
             object:
-
         """
         # Careful: The reward is calculated for player who just played
         # at the node and not the next player to play
@@ -254,7 +316,7 @@ class UctMctsAgent:
         self.root = Node()
 
     def statistics(self) -> tuple:
-        return self.num_rollouts, self.node_count, self.run_time
+        return self.counter_visitsum_rollouts, self.counter_visitsode_count, self.run_time
 
     def tree_size(self) -> int:
         """

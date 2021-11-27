@@ -6,7 +6,8 @@
 import socket
 
 from gamestate import GameState
-from rave_mcts import RaveMCTSEngine
+from lgrm_mcts import LGRMCTSEngine
+from naive_mcts import NaiveMCTSEngine
 from utils import extract_last_move_from_board
 
 
@@ -77,7 +78,7 @@ class MCTSAgent():
         self.board_size = board_size
         self.colour = ""
         self.turn_count = 0
-        self.agent = RaveMCTSEngine(GameState(board_size))
+        self.agent = LGRMCTSEngine(GameState(board_size))
 
     def run(self):
         """
@@ -119,7 +120,7 @@ class MCTSAgent():
                     self.colour = self.opp_colour()
                     if s[3] == self.colour:
                         last_move = extract_last_move_from_board(s[2])
-                        self.agent = RaveMCTSEngine(GameState(11))
+                        self.agent = LGRMCTSEngine(GameState(11))
                         self.agent.move((last_move[0], last_move[1]))
                         self.make_move()
 
@@ -176,8 +177,7 @@ class MCTSAgent():
         if self.colour == "B" and self.turn_count == 0:
             if self.test_swap(action):
                 self.s.sendall(bytes("SWAP\n", "utf-8"))
-                # self.colour = self.opp_colour()
-                self.agent = RaveMCTSEngine(GameState(11))
+                self.agent = LGRMCTSEngine(GameState(11))
                 self.agent.move((action[0], action[1]))
             else:
                 self.choose_move()

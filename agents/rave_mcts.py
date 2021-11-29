@@ -30,6 +30,10 @@ class Node:
         times this position was visited
     reward_average: int
         average reward (wins-losses) from this position
+    rave_counter_visits: int
+        times this move has appeared in a rollout
+    rave_reward_average: int
+        times this move has been critical in a rollout (lead to an outcome)
 
     Methods
     -------
@@ -54,6 +58,8 @@ class Node:
         # performance metrics
         self.counter_visits = 0  # times this position was visited
         self.reward_average = 0  # average reward (wins-losses) from this position
+        self.rave_counter_visits = 0  # times this move has appeared in a rollout
+        self.rave_reward_average = 0  # times this move has been critical in a rollout
 
     def add_children(self, children: dict) -> None:
         """
@@ -63,33 +69,40 @@ class Node:
             self.children[child.move] = child
 
     @property
-    def value(self, explore: float = MCTSMeta.EXPLORATION):
+    def value(self, explore: float = MCTSMeta.EXPLORATION, rave_const: float = MCTSMeta.RAVE_CONST) -> float:
         '''
-        Calculate the Upper Confidence bounds applied to Trees(UCT) value 
-        of this node relative to its parent
+        Calculate the evaluation formula applied to the Game Tree
 
             Parameters:
                     explore (float): how much the value should favor nodes 
                                     that have yet to be thoroughly explored 
                                     versus nodes that seem to have a high win rate
 
+                    rave_const (float): constant to quantify how to balance between UCT and AMAF
+
             Returns:
-                    (float): UCT value
+                    (float): node score
         '''
 
+        # unless explore is set to zero, maximally favor unexplored nodes
         if self.counter_visits == 0:
             return 0 if explore == 0 else GameMeta.INF
         else:
-            # exploitation + exploration formula
-            return self.reward_average / self.counter_visits + explore * sqrt(
+            # rave valuation:
+            alpha = max(0, (rave_const - self.counter_visits) / rave_const)
+            UCT = self.reward_average / self.counter_visits + explore * sqrt(
                 2 * log(self.parent.counter_visits) / self.counter_visits)
+            AMAF = self.rave_reward_average / self.rave_counter_visits if self.rave_counter_visits != 0 else 0
+            return (1 - alpha) * UCT + alpha * AMAF
 
 
-class NaiveMCTSEngine:
+class RaveMCTSEngine():
+
     """
-    Implementation of an agent that performs MCTS. It is used for Monte Carlo Tree Search.
-    It contains latest move applied from parent to current node, performance metrics,
-    parent node, children nodes and outcome.
+    Implementation of an agent that performs MCTS with RAVE. It is used for Monte Carlo Tree Search.
+    RAVE stands for Rapid Action Value Estimation. It is an optimization strategy for the learning 
+    occurred inside the game tree. It contains latest move applied from parent to current node,
+    performance metrics, parent node, children nodes and outcome.
     ...
 
     Attributes
@@ -139,25 +152,60 @@ class NaiveMCTSEngine:
         Count nodes in tree by BFS.
     """
 
-    def __init__(self, state=GameState(11)):
-        """
-        Initialize a new node with optional move and parent and initially empty
-        children list and rollout statistics and unspecified outcome.
-
-        Parameters:
-                move (tuple): the move that generated the current node
-                parent (Node): parent node
-        """
+    def __init__(self, state: GameState = GameState(11)):
         self.root_state = deepcopy(state)
         self.root = Node()
         self.run_time = 0
         self.node_count = 0
         self.num_rollouts = 0
 
+    def set_gamestate(self, state: GameState) -> None:
+        """
+        Set the root_state of the tree to the passed gamestate, this clears all
+        the information stored in the tree since none of it applies to the new
+        state.
+        """
+        self.root_state = deepcopy(state)
+        self.root = Node()
+
+    def move(self, move: tuple) -> None:
+        """
+        Make the passed move and update the tree appropriately. It is
+        designed to let the player choose an action manually (which might
+        not be the best action).
+        Args:
+            move:
+        """
+        if move in self.root.children:
+            child = self.root.children[move]
+            child.parent = None
+            self.root = child
+            self.root_state.play(child.move)
+            return
+
+        # if for whatever reason the move is not in the children of
+        # the root just throw out the tree and start over
+        self.root_state.play(move)
+        self.root = Node()
+
+    def best_move(self) -> tuple:
+        """
+        Return the best move according to the current tree.
+        Returns:
+            best move in terms of the most simulations number unless the game is over
+        """
+        if self.root_state.winner != GameMeta.PLAYERS['none']:
+            return GameMeta.GAME_OVER
+
+        # choose the move of the most simulated node breaking ties randomly
+        max_value = max(self.root.children.values(), key=lambda n: n.counter_visits).counter_visits
+        max_nodes = [n for n in self.root.children.values() if n.counter_visits == max_value]
+        bestchild = choice(max_nodes)
+        return bestchild.move
+
     def search(self, time_budget: int) -> None:
         """
-        Search and update the search tree for a
-        specified amount of time in seconds.
+        Search and update the search tree for a specified amount of time in seconds.
         """
         start_time = time()
         num_rollouts = 0
@@ -166,14 +214,14 @@ class NaiveMCTSEngine:
         while time() - start_time < time_budget:
             node, state = self.select_node()
             turn = state.turn()
-            outcome = self.roll_out(state)
-            self.backup(node, turn, outcome)
+            outcome, blue_rave_pts, red_rave_pts = self.roll_out(state)
+            self.backup(node, turn, outcome, blue_rave_pts, red_rave_pts)
             num_rollouts += 1
         run_time = time() - start_time
         node_count = self.tree_size()
         self.run_time = run_time
-        self.counter_visitsode_count = node_count
-        self.counter_visitsum_rollouts = num_rollouts
+        self.node_count = node_count
+        self.num_rollouts = num_rollouts
 
     def select_node(self) -> tuple:
         """
@@ -182,13 +230,14 @@ class NaiveMCTSEngine:
         node = self.root
         state = deepcopy(self.root_state)
 
-        # stop if we find reach a leaf node
+        # stop if we reach a leaf node
         while len(node.children) != 0:
+            max_value = max(node.children.values(),
+                            key=lambda n:
+                            n.value).value
             # descend to the maximum value node, break ties at random
-            children = node.children.values()
-            max_value = max(children, key=lambda n: n.value).value
-            max_nodes = [n for n in node.children.values()
-                         if n.value == max_value]
+            max_nodes = [n for n in node.children.values() if
+                         n.value == max_value]
             node = choice(max_nodes)
             state.play(node.move)
 
@@ -211,10 +260,10 @@ class NaiveMCTSEngine:
         moves in the passed gamestate and add them to the tree.
 
         Returns:
-            bool: returns false If node is leaf (the game has ended).
+            object:
         """
         children = []
-        if state.winner != GameMeta.PLAYERS['none']:
+        if state.winner != GameMeta.PLAYERS["none"]:
             # game is over at this node so nothing to expand
             return False
 
@@ -225,98 +274,59 @@ class NaiveMCTSEngine:
         return True
 
     @staticmethod
-    def roll_out(state: GameState) -> int:
+    def roll_out(state: GameState) -> tuple:
         """
-        Simulate an entirely random game from the passed state and return the winning
-        player.
+        Simulate a random game except that we play all known critical
+        cells first, return the winning player and record critical cells at the end.
 
-        Args:
-            state: game state
-
-        Returns:
-            int: winner of the game
         """
-        moves = state.moves()  # Get a list of all possible moves in current state of the game
-
-        while state.winner == GameMeta.PLAYERS['none']:
+        moves = state.moves()
+        while state.winner == GameMeta.PLAYERS["none"]:
             move = choice(moves)
             state.play(move)
             moves.remove(move)
 
-        return state.winner
+        blue_rave_pts = []
+        red_rave_pts = []
 
-    @staticmethod
-    def backup(node: Node, turn: int, outcome: int) -> None:
+        for x in range(state.size):
+            for y in range(state.size):
+                if state.board[(x, y)] == GameMeta.PLAYERS["blue"]:
+                    blue_rave_pts.append((x, y))
+                elif state.board[(x, y)] == GameMeta.PLAYERS["red"]:
+                    red_rave_pts.append((x, y))
+
+        return state.winner, blue_rave_pts, red_rave_pts
+
+    def backup(self, node: Node, turn: int, outcome: int, blue_rave_pts: list, red_rave_pts: list) -> None:
         """
         Update the node statistics on the path from the passed node to root to reflect
         the outcome of a randomly simulated playout.
-
-        Args:
-            node:
-            turn: winner turn
-            outcome: outcome of the rollout
-
-        Returns:
-            object:
         """
-        # Careful: The reward is calculated for player who just played
+        # note that reward is calculated for player who just played
         # at the node and not the next player to play
-        reward = 0 if outcome == turn else 1
+        reward = -1 if outcome == turn else 1
 
         while node is not None:
+            if turn == GameMeta.PLAYERS["red"]:
+                for point in red_rave_pts:
+                    if point in node.children:
+                        node.children[point].rave_reward_average += -reward
+                        node.children[point].rave_counter_visits += 1
+            else:
+                for point in blue_rave_pts:
+                    if point in node.children:
+                        node.children[point].rave_reward_average += -reward
+                        node.children[point].rave_counter_visits += 1
+
             node.counter_visits += 1
             node.reward_average += reward
+            turn = GameMeta.PLAYERS['red'] if turn == GameMeta.PLAYERS['blue'] else GameMeta.PLAYERS['blue']
+            reward = -reward
             node = node.parent
-            reward = 0 if reward == 1 else 1
-
-    def best_move(self) -> tuple:
-        """
-        Return the best move according to the current tree.
-        Returns:
-            best move in terms of the most simulations number unless the game is over
-        """
-        if self.root_state.winner != GameMeta.PLAYERS['none']:
-            return GameMeta.GAME_OVER
-
-        # choose the move of the most simulated node breaking ties randomly
-        max_value = max(self.root.children.values(), key=lambda n: n.counter_visits).counter_visits
-        max_nodes = [n for n in self.root.children.values() if n.counter_visits == max_value]
-        bestchild = choice(max_nodes)
-        return bestchild.move
-
-    def move(self, move: tuple) -> tuple:
-        """
-        Make the passed move and update the tree appropriately. It is
-        designed to let the player choose an action manually (which might
-        not be the best action).
-        Args:
-            move:
-        """
-        if move in self.root.children:
-            child = self.root.children[move]
-            child.parent = None
-            self.root = child
-            self.root_state.play(child.move)
-            return move
-
-        # if for whatever reason the move is not in the children of
-        # the root just throw out the tree and start over
-        self.root_state.play(move)
-        self.root = Node()
-        return move
-
-    def set_gamestate(self, state: GameState) -> None:
-        """
-        Set the root_state of the tree to the passed gamestate, this clears all
-        the information stored in the tree since none of it applies to the new
-        state.
-
-        """
-        self.root_state = deepcopy(state)
-        self.root = Node()
 
     def statistics(self) -> tuple:
-        return self.counter_visitsum_rollouts, self.counter_visitsode_count, self.run_time
+        return self.num_rollouts, self.node_count, self.run_time
 
     def tree_size(self) -> int:
         """

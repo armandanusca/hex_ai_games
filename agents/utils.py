@@ -13,6 +13,6 @@ def extract_last_move_from_board(board) -> tuple:
     '''
     lines = board.split(',')
     for current_line in range(0, len(lines)):
-        if 'R' in lines['current_line']:
-            return (current_line, lines[current_line].indexOf('R'))
+        if 'R' in lines[current_line]:
+            return (current_line, lines[current_line].index('R'))
     return (-1, -1)

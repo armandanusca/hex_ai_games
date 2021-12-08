@@ -8,6 +8,7 @@ import socket
 from gamestate import GameState
 from lgrm_mcts import LGRMCTSEngine
 from naive_mcts import NaiveMCTSEngine
+from leaf_parallelization_agent import LeafThreadingAgent
 from utils import extract_last_move_from_board
 
 
@@ -53,7 +54,7 @@ class MCTSAgent():
 
     host = "127.0.0.1"
     port = 1234
-    time_limit = 4
+    time_limit = 10
     agent = None
 
     def __init__(self, board_size=11):
@@ -78,7 +79,7 @@ class MCTSAgent():
         self.board_size = board_size
         self.colour = ""
         self.turn_count = 0
-        self.agent = LGRMCTSEngine(GameState(board_size))
+        self.agent = LeafThreadingAgent(GameState(board_size))
 
     def run(self):
         """
@@ -120,7 +121,7 @@ class MCTSAgent():
                     self.colour = self.opp_colour()
                     if s[3] == self.colour:
                         last_move = extract_last_move_from_board(s[2])
-                        self.agent = LGRMCTSEngine(GameState(11))
+                        self.agent = LeafThreadingAgent(GameState(11))
                         self.agent.move((last_move[0], last_move[1]))
                         self.make_move()
 
@@ -156,7 +157,7 @@ class MCTSAgent():
 
         # Performance measures
         num_rollouts, node_count, run_time = self.agent.statistics()
-        # print(num_rollouts, node_count, run_time)
+        print(num_rollouts, node_count, run_time)
 
         move = self.agent.best_move()
         # print("Best move suggested: ", move)
@@ -177,7 +178,7 @@ class MCTSAgent():
         if self.colour == "B" and self.turn_count == 0:
             if self.test_swap(action):
                 self.s.sendall(bytes("SWAP\n", "utf-8"))
-                self.agent = LGRMCTSEngine(GameState(11))
+                self.agent = LeafThreadingAgent(GameState(11))
                 self.agent.move((action[0], action[1]))
             else:
                 self.choose_move()

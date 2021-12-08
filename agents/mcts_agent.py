@@ -52,7 +52,7 @@ class MCTSAgent():
 
     host = "127.0.0.1"
     port = 1234
-    time_limit = 4
+    time_limit = 10
     agent = None
 
     def __init__(self, board_size=11):
@@ -155,7 +155,8 @@ class MCTSAgent():
 
         # Performance measures
         num_rollouts, node_count, run_time = self.agent.statistics()
-        # print(num_rollouts, node_count, run_time)
+        print("RAVE AGENT INCOMING")
+        print(num_rollouts, node_count, run_time)
 
         move = self.agent.best_move()
         # print("Best move suggested: ", move)

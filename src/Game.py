@@ -268,7 +268,7 @@ class Game():
             )
             move = Move(self._player, -2, -2)
 
-        self._write_log(log_message)
+        #self._write_log(log_message)
         return (move, move_time)
 
     def _swap(self):
@@ -337,10 +337,10 @@ class Game():
                 "has won!\n"
             )
             protocol_message = f"END;{self._player.get_char()}\n"
-            log_message = (
-                f"0,{self._players[self._player]['name']}," +
-                f"End,Win,{self._has_swapped}\n"
-            )
+            # log_message = (
+            #     f"0,{self._players[self._player]['name']}," +
+            #     f"End,Win,{self._has_swapped}\n"
+            # )
 
         elif (status == EndState.BAD_MOVE):
             # the player printed is the winner
@@ -385,8 +385,13 @@ class Game():
             f"{Game.ns_to_s(total_time)}s. The mean move time " +
             f"was {Game.ns_to_s(means['Total'])}s.\n"
         )
+        # log_message += (
+        #     f"0,Total,{self._turn},{total_time},{means['Total']}\n"
+        # )
+
+
         log_message += (
-            f"0,Total,{self._turn},{total_time},{means['Total']}\n"
+            f"{self._players[Colour.RED]['name']}, {self._players[Colour.BLUE]['name']}, {self._players[self._player]['name']}\n"
         )
 
         # colour-specific stats
@@ -398,11 +403,11 @@ class Game():
                 "Their average move time was " +
                 f"{Game.ns_to_s(means[colour])}s.\n"
             )
-            log_message += (
-                f"0,{self._players[colour]['name']}," +
-                f"{self._players[colour]['turns']}," +
-                f"{self._players[colour]['time']},{means[colour]}\n"
-            )
+            # log_message += (
+            #     f"0,{self._players[colour]['name']}," +
+            #     f"{self._players[colour]['turns']}," +
+            #     f"{self._players[colour]['time']},{means[colour]}\n"
+            # )
 
         self._send_message(verbose_message, protocol_message)
         self._write_log(log_message)
@@ -474,13 +479,13 @@ class Game():
             idx += 1
 
         # submit the start message
-        with open(self._log_path, "w") as f:
-            f.write(f"Start log at {datetime.now()}\n")
-            f.write(
-                f"Board is {self._board.get_size()}x" +
-                f"{self._board.get_size()}.\n"
-            )
-            f.write("No,Player,X,Y,Time\n")
+        # with open(self._log_path, "w") as f:
+        #     f.write(f"Start log at {datetime.now()}\n")
+        #     f.write(
+        #         f"Board is {self._board.get_size()}x" +
+        #         f"{self._board.get_size()}.\n"
+        #     )
+        #     f.write("No,Player,X,Y,Time\n")
 
     def _write_log(self, message):
         """Writes the specified message and a newline to the log file."""

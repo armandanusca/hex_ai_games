@@ -52,7 +52,7 @@ class MCTSAgent():
 
     host = "127.0.0.1"
     port = 1234
-    time_limit = 4
+    time_limit = 1
     agent = None
 
     def __init__(self, board_size=11):

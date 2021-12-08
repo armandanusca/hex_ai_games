@@ -6,7 +6,7 @@
 import socket
 
 from gamestate import GameState
-from root_parallelization_agent import RootThreadingAgent
+from RootThreadingAgent import RootThreadingAgent
 from utils import extract_last_move_from_board
 
 

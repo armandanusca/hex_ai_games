@@ -3,10 +3,6 @@ class MCTSMeta:
     EXPLORATION = 0.5
     RAVE_CONST = 300
     RANDOMNESS = 0.5
-    POOLRAVE_CAPACITY = 10
-    K_CONST = 10
-    A_CONST = 0.25
-    WARMUP_ROLLOUTS = 7
 
 
 class GameMeta:

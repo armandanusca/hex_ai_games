@@ -6,9 +6,9 @@
 import socket
 
 from gamestate import GameState
+from LeafThreadingAgent import LeafThreadingAgent
 from lgrm_mcts import LGRMCTSEngine
 from naive_mcts import NaiveMCTSEngine
-from leaf_parallelization_agent import LeafThreadingAgent
 from utils import extract_last_move_from_board
 
 
@@ -54,7 +54,7 @@ class MCTSAgent():
 
     host = "127.0.0.1"
     port = 1234
-    time_limit = 10
+    time_limit = 5
     agent = None
 
     def __init__(self, board_size=11):

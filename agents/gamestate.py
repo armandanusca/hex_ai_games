@@ -35,8 +35,8 @@ class GameState:
         self.blue_played = 0
         self.red_groups = UnionFind()
         self.blue_groups = UnionFind()
-        self.red_groups.set_ignored_elements([GameMeta.EDGE1, GameMeta.EDGE2])
-        self.blue_groups.set_ignored_elements([GameMeta.EDGE1, GameMeta.EDGE2])
+        self.red_groups.set_ignored_nodes([GameMeta.EDGE1, GameMeta.EDGE2])
+        self.blue_groups.set_ignored_nodes([GameMeta.EDGE1, GameMeta.EDGE2])
 
     def play(self, cell: tuple) -> None:
         """

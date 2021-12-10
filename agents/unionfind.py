@@ -1,107 +1,103 @@
-###############################################################################################
-# Union Find
-###############################################################################################
-
 class UnionFind:
     """
-    Notes:
-        unionfind data structure specialized for finding hex connections.
-        Implementation inspired by UAlberta CMPUT 275 2015 class notes.
-    Attributes:
-        parent (dict): Each group parent
-        rank (dict): Each group rank
-        groups (dict): Stores the groups and chain of cells
-        ignored (list): The neighborhood of board edges has to be ignored
+    UnionFind data structure used for finding hex connections by grouping disjoint sets of connected nodes.
+    It is a tree-based implementation with union by rank and grandparent path compression.
+    Class members:
+        parent: dictionary mapping node to parent
+        rank: dictionary mapping group to rank
+        groups: dictionary mapping group to member nodes
+        ignored_nodes: board edges which are to be ignored
     """
 
     def __init__(self) -> None:
         """
-        Initialize parent and rank as empty dictionaries, we will
-        lazily add items as necessary.
+        Initialize parent, rank and group as empty dictionaries.
         """
         self.parent = {}
         self.rank = {}
         self.groups = {}
-        self.ignored = []
+        self.ignored_nodes = []
 
     def join(self, x, y) -> bool:
         """
-        Merge the groups of x and y if they were not already,
-        return False if they were already merged, true otherwise
-        Args:
-            x (tuple): game board cell
-            y (tuple): game board cell
+        Join the group where x belongs with the group where y belongs, unless x and y are in the same group.
+        Union by rank is used to determine which set is joined to which.
+        Arguments:
+            x: board cell representation
+            y: board cell representation
+        Return: 
+            False if groups were already join
+            True otherwise
         """
-        rep_x = self.find(x)
-        rep_y = self.find(y)
+        group_x = self.find(x)
+        group_y = self.find(y)
 
-        if rep_x == rep_y:
+        if group_x == group_y:
             return False
-        if self.rank[rep_x] < self.rank[rep_y]:
-            self.parent[rep_x] = rep_y
-
-            self.groups[rep_y].extend(self.groups[rep_x])
-            del self.groups[rep_x]
-        elif self.rank[rep_x] > self.rank[rep_y]:
-            self.parent[rep_y] = rep_x
-
-            self.groups[rep_x].extend(self.groups[rep_y])
-            del self.groups[rep_y]
+        if self.rank[group_x] < self.rank[group_y]:
+            self.parent[group_x] = group_y
+            self.groups[group_y] += self.groups[group_x]
+            del self.groups[group_x]
+        elif self.rank[group_x] > self.rank[group_y]:
+            self.parent[group_y] = group_x
+            self.groups[group_x] += self.groups[group_y]
+            del self.groups[group_y]
         else:
-            self.parent[rep_x] = rep_y
-            self.rank[rep_y] += 1
-
-            self.groups[rep_y].extend(self.groups[rep_x])
-            del self.groups[rep_x]
+            self.parent[group_x] = group_y
+            self.rank[group_y] += 1
+            self.groups[group_y] += self.groups[group_x]
+            del self.groups[group_x]
 
         return True
 
     def find(self, x):
         """
-        Get the representative element associated with the set in
-        which element x resides. Uses grandparent compression to compress
-        the tree on each find operation so that future find operations are faster.
-        Args:
-            x (tuple): game board cell
+        Get the representation of the set to which the node x belongs. 
+        Grandparent path compression is used to compress the tree structure on 
+        each find operation making subsequent find operations faster.
+        Lazily adds x if it is not present in any group.
+        Arguments:
+            x: board cell representation
         """
         if x not in self.parent:
             self.parent[x] = x
             self.rank[x] = 0
-            if x in self.ignored:
+            if x in self.ignored_nodes:
                 self.groups[x] = []
             else:
                 self.groups[x] = [x]
 
-        px = self.parent[x]
-        if x == px:
+        parent_x = self.parent[x]
+        if x == parent_x:
             return x
 
-        gx = self.parent[px]
-        if gx == px:
-            return px
+        grandparent_x = self.parent[parent_x]
+        if grandparent_x == parent_x:
+            return parent_x
 
-        self.parent[x] = gx
+        # Path compression
+        self.parent[x] = grandparent_x
 
-        return self.find(gx)
+        return self.find(grandparent_x)
 
     def connected(self, x, y) -> bool:
         """
-        Check if two elements are in the same group.
+        Check if two nodes belong to the same group.
         Args:
-            x (tuple): game board cell
-            y (tuple): game board cell
+            x: board cell representation
+            y: board cell representation
         """
         return self.find(x) == self.find(y)
 
-    def set_ignored_elements(self, ignore):
+    def set_ignored_nodes(self, ignored_nodes):
         """
-        Elements in ignored, edges has to be ignored
+        Set the nodes which are to be ignored. This should be the board edges
         """
-        self.ignored = ignore
+        self.ignored_nodes = ignored_nodes
 
     def get_groups(self) -> dict:
         """
-        Returns:
-            Groups
+        Return:
+            all groups
         """
         return self.groups

@@ -21,6 +21,8 @@ class RootThreadingAgent:
     for i in range(self.threads):
       self.agents.append(RaveMCTSEngine(state))
 
+    self.current_stats = None
+
   def search(self, time_budget):
     """
     Search and update the search tree for a 
@@ -91,4 +93,11 @@ class RootThreadingAgent:
     """
     for agent in self.agents:
       agent.set_gamestate(state)
+
+  def statistics(self):
+    """
+    Return the statistics of the tree.
+
+    """
+    return self.agents[0].statistics()
 

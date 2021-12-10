@@ -6,15 +6,10 @@
 import socket
 
 from gamestate import GameState
-from RootThreadingAgent import RootThreadingAgent
+from lgrm_mcts import LGRMCTSEngine
+from naive_mcts import NaiveMCTSEngine
 from utils import extract_last_move_from_board
 
-import argparse
-
-parser = argparse.ArgumentParser(description='Parallelization Agent')
-parser.add_argument('--processes', '-p', type=int, default=1, dest = 'processes',
-                    help='Number f processes to use')
-args = parser.parse_args()
 
 class MCTSAgent():
     """
@@ -83,7 +78,7 @@ class MCTSAgent():
         self.board_size = board_size
         self.colour = ""
         self.turn_count = 0
-        self.agent = RootThreadingAgent(GameState(board_size), processes=args.processes)
+        self.agent = LGRMCTSEngine(GameState(board_size))
 
     def run(self):
         """
@@ -125,7 +120,7 @@ class MCTSAgent():
                     self.colour = self.opp_colour()
                     if s[3] == self.colour:
                         last_move = extract_last_move_from_board(s[2])
-                        self.agent = RootThreadingAgent(GameState(11), processes=args.processes)
+                        self.agent = LGRMCTSEngine(GameState(11))
                         self.agent.move((last_move[0], last_move[1]))
                         self.make_move()
 
@@ -159,14 +154,14 @@ class MCTSAgent():
         """
         self.agent.search(self.time_limit)
 
+        # Performance measures
+        num_rollouts, node_count, run_time = self.agent.statistics()
+        # print(num_rollouts, node_count, run_time)
 
         move = self.agent.best_move()
         # print("Best move suggested: ", move)
         self.agent.move(move)
 
-        # Performance measures
-        num_rollouts, node_count, run_time = self.agent.statistics()
-        print(num_rollouts, node_count, run_time)
         # Send move
         self.s.sendall(bytes(f"{move[0]},{move[1]}\n", "utf-8"))
 
@@ -182,8 +177,7 @@ class MCTSAgent():
         if self.colour == "B" and self.turn_count == 0:
             if self.test_swap(action):
                 self.s.sendall(bytes("SWAP\n", "utf-8"))
-                # self.colour = self.opp_colour()
-                self.agent = RootThreadingAgent(GameState(11), processes=args.processes)
+                self.agent = LGRMCTSEngine(GameState(11))
                 self.agent.move((action[0], action[1]))
             else:
                 self.choose_move()
@@ -202,6 +196,7 @@ class MCTSAgent():
             return "R"
         else:
             return "None"
+
 
 if (__name__ == "__main__"):
     agent = MCTSAgent()

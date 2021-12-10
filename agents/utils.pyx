@@ -16,3 +16,6 @@ cpdef tuple extract_last_move_from_board(board):
         if 'R' in lines[current_line]:
             return (current_line, lines[current_line].index('R'))
     return (-1, -1)
+
+
+

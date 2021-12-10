@@ -142,7 +142,7 @@ class MCTSAgent():
         '''
         # TODO: Implement a way to decide if the agent should swap
         if action:
-            return True
+            return False
         return False
 
     def choose_move(self) -> None:
@@ -155,7 +155,7 @@ class MCTSAgent():
 
         # Performance measures
         num_rollouts, node_count, run_time = self.agent.statistics()
-        print(num_rollouts, node_count, run_time)
+        print(f'HELLO THIS IS RAVE: {num_rollouts}, {node_count}, {run_time}')
 
         move = self.agent.best_move()
         # print("Best move suggested: ", move)

@@ -34,3 +34,4 @@ cdef class GameState:
     cpdef int winner(self)
     cpdef list neighbors(self, tuple cell)
     cpdef list moves(self)
+    cpdef tuple get_rb_played(self)

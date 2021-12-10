@@ -1,3 +1,4 @@
+
 from numpy import zeros, int_
 from unionfind cimport UnionFind
 from meta import GameMeta
@@ -167,8 +168,16 @@ cdef class GameState:
         Get a list of all moves possible on the current board.
         """
         moves = []
+        #cdef int x, y
+
         for y in range(self.size):
             for x in range(self.size):
                 if self.board[x, y] == GameMeta.PLAYERS['none']:
                     moves.append((x, y))
         return moves
+
+    cpdef tuple get_rb_played(self):
+        """
+        Returns (list): list of red and blue played
+        """
+        return (self.red_played, self.blue_played)

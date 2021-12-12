@@ -60,8 +60,10 @@ class Game():
         }
         self._players[Colour.RED]['name'] = player1['name']
         self._players[Colour.RED]['run string'] = player1['run string']
+        self._players[Colour.RED]['hyperparameters'] = player1['hyperparameters']
         self._players[Colour.BLUE]['name'] = player2['name']
         self._players[Colour.BLUE]['run string'] = player2['run string']
+        self._players[Colour.BLUE]['hyperparameters'] = player2['hyperparameters']
 
         self._kill_bots = kill_bots
         self._silent_bots = silent_bots
@@ -341,6 +343,16 @@ class Game():
             #     f"0,{self._players[self._player]['name']}," +
             #     f"End,Win,{self._has_swapped}\n"
             # )
+            if (self._has_swapped):
+                player_number = 1 if self._player == Colour.BLUE else 2
+                log_message += (
+                    f"{self._players[Colour.BLUE]['hyperparameters'][0]},{self._players[Colour.BLUE]['hyperparameters'][1]},{self._players[Colour.RED]['hyperparameters'][0]},{self._players[Colour.RED]['hyperparameters'][1]},{player_number},{self._turn}\n"
+                )
+            else:
+                player_number = 1 if self._player == Colour.RED else 2
+                log_message += (
+                    f"{self._players[Colour.RED]['hyperparameters'][0]},{self._players[Colour.RED]['hyperparameters'][1]},{self._players[Colour.BLUE]['hyperparameters'][0]},{self._players[Colour.BLUE]['hyperparameters'][1]},{player_number},{self._turn}\n"
+                )
 
         elif (status == EndState.BAD_MOVE):
             # the player printed is the winner
@@ -388,11 +400,6 @@ class Game():
         # log_message += (
         #     f"0,Total,{self._turn},{total_time},{means['Total']}\n"
         # )
-
-
-        log_message += (
-            f"{self._players[Colour.RED]['name']}, {self._players[Colour.BLUE]['name']}, {self._players[self._player]['name']}\n"
-        )
 
         # colour-specific stats
         for colour in Colour:
@@ -473,12 +480,12 @@ class Game():
 
         # create a new log file
         self._log_path = log_path + "log.csv"
-        idx = 1
-        while exists(self._log_path):
-            self._log_path = log_path + f"log{idx}.csv"
-            idx += 1
+        # idx = 1
+        # while exists(self._log_path):
+        #     self._log_path = log_path + f"log{idx}.csv"
+        #     idx += 1
 
-        # submit the start message
+        # # submit the start message
         # with open(self._log_path, "w") as f:
         #     f.write(f"Start log at {datetime.now()}\n")
         #     f.write(
@@ -487,13 +494,17 @@ class Game():
         #     )
         #     f.write("No,Player,X,Y,Time\n")
 
+        # with open(self._log_path, "w") as f:
+        #     f.write(f"{self._players[Colour.RED]['hyperparameters'][0]}, {self._players[Colour.RED]['hyperparameters'][1]}\n")
+        #     f.write(f"{self._players[Colour.BLUE]['hyperparameters'][0]}, {self._players[Colour.BLUE]['hyperparameters'][1]}\n")
+
     def _write_log(self, message):
         """Writes the specified message and a newline to the log file."""
         if (not self._log):
             return
 
         with open(self._log_path, "a") as f:
-            f.write(message + "\n")
+            f.write(message)
 
     def get_board(self):
         return self._board

@@ -165,7 +165,7 @@ class MCTSAgent():
         print(num_rollouts, node_count, run_time)
 
         move = self.agent.best_move()
-        # print("Best move suggested: ", move)
+        print("Best move suggested: ", move)
         self.agent.move(move)
 
         # Send move
@@ -183,13 +183,16 @@ class MCTSAgent():
         if self.colour == "B" and self.turn_count == 0:
             if self.test_swap(action):
                 self.s.sendall(bytes("SWAP\n", "utf-8"))
-                # self.colour = self.opp_colour()
                 self.agent = RaveMCTSEngine(GameState(11), self.explore, self.rave_const)
                 self.agent.move((action[0], action[1]))
             else:
                 self.choose_move()
         else:
-            self.choose_move()
+            if self.turn_count == 0:
+                self.agent.move((1,3))
+                self.s.sendall(bytes("1,3\n", "utf-8"))
+            else:
+                self.choose_move()
         self.turn_count += 1
 
     def opp_colour(self):

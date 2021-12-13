@@ -1,40 +1,105 @@
+# keep this line for cython directives
+
 from copy import deepcopy
 from libc.math cimport sqrt, log
+from libc.stdlib cimport rand
 from queue import Queue
-from random import choice
 from time import time
-# See if you can use cmath exp 
-from numpy import where, mean, std, exp
+from numpy import where
+import numpy as np
+cimport numpy as np
+import cython
 
 from gamestate cimport GameState
 from meta import GameMeta, MCTSMeta
 from operator import itemgetter
 
+np.import_array()
+DTYPE = np.int
+ctypedef np.int_t DTYPE_t
+
 cdef extern from "<math.h>" nogil:
     float fmaxf(float, float)
-
-
+    double exp(double)
+ 
 cdef class RollingStatistic():
 
     cdef public:
-        double mean
-        double stddev
-        double variance
         int n
+        double mean
+        double M2
+        double delta
 
     def __init__(self):
-        self.mean = 0
-        self.variance = 0
-        self.stddev = sqrt(self.variance)
-        self.n = 0
+        self.n, self.mean, self.M2, self.delta = 0, 0.0, 0.0, 0.0
 
-    def update(self, value):
-        new_avg = (self.mean * self.n + value) / (self.n + 1)
-        new_variance = (self.variance * self.n + (value - self.mean) * (value - self.mean) ) / (self.n + 1)
-        self.mean = new_avg
-        self.variance = new_variance
-        self.stddev = sqrt(new_variance)
+    cdef void update(self, float new_value):
         self.n += 1
+        self.delta = new_value - self.mean
+        self.mean += self.delta / self.n
+        self.M2 += self.delta * (new_value - self.mean)
+
+    cdef double variance(self):
+        if self.n < 2:
+            return 0.0
+        return self.M2 / (self.n)
+
+    cdef double std(self):
+        return sqrt(self.variance())
+
+    cdef void clear(self):
+        self.n, self.mean, self.M2 = 0, 0.0, 0.0
+
+@cython.wraparound(False)
+@cython.boundscheck(False)
+cdef cchoice(arr):       
+    return arr[rand() % len(arr)] 
+
+@cython.wraparound(False)
+@cython.boundscheck(False)
+cdef bint expand(Node parent, GameState state):
+    """
+    Generate the children of the passed "parent" node based on the available
+    moves in the passed gamestate and add them to the tree.
+
+    Returns:
+        object:
+    """
+
+    if state.winner() != GameMeta.PLAYERS["none"]:
+        # game is over at this node so nothing to expand
+        return False
+
+    #for move in state.moves():
+    #    children.append(Node(move, parent))
+    children = [Node(move, parent) for move in state.moves()]
+
+    parent.add_children(children)
+    return True
+
+cdef tuple roll_out(state):
+        """
+        Simulate a random game except that we play all known critical
+        cells first, return the winning player and record critical cells at the end.
+
+        """
+
+        cdef:
+            (int, int) move
+            np.ndarray[DTYPE_t, ndim=1] blue_rave_ptsx, blue_rave_ptsy, red_rave_ptsx, red_rave_ptsy
+
+        moves = state.moves()
+        while state.winner() == GameMeta.PLAYERS["none"]:
+            move = cchoice(moves)
+            state.play(move)
+            moves.remove(move)
+
+        players_moves = state.get_rb_played()
+
+        blue_rave_ptsx, blue_rave_ptsy = where(state.board == GameMeta.PLAYERS["blue"])
+        red_rave_ptsx, red_rave_ptsy = where(state.board == GameMeta.PLAYERS["red"])
+
+        return state.winner(), players_moves, red_rave_ptsx, red_rave_ptsy, blue_rave_ptsx, blue_rave_ptsy
         
 cdef class Node:
     """
@@ -132,6 +197,11 @@ cdef class Node:
             UCT = self.reward_average / self.counter_visits + explore * sqrt(
                 2 * log(self.parent.counter_visits) / self.counter_visits)
             AMAF = self.rave_reward_average / self.rave_counter_visits if self.rave_counter_visits != 0 else 0
+            v = (1 - alpha) * UCT + alpha * AMAF
+            #if v != v:
+            #    print("nan")
+            #    print(alpha, UCT, AMAF)
+            #    print(self.rave_reward_average)
             return (1 - alpha) * UCT + alpha * AMAF
 
 
@@ -197,9 +267,6 @@ cdef class QRAVEEngine():
         int node_count
         int run_time
         int num_rollouts
-        # TODO: convert to list of tuples
-        list red_pts
-        list blue_pts       
 
         float a_const
         float k_const
@@ -269,13 +336,21 @@ cdef class QRAVEEngine():
         max_nodes = [n[1] for n in max_nodes if n[0] == max_value]
         #max_value = max(self.root.children.values(), key=lambda n: n.counter_visits).counter_visits
         #max_nodes = [n for n in self.root.children.values() if n.counter_visits == max_value]
-        bestchild = choice(max_nodes)
+        bestchild = cchoice(max_nodes)
         return bestchild.move
 
     cpdef void search(self, int time_budget):
         """
         Search and update the search tree for a specified amount of time in seconds.
         """
+
+        cdef:
+            long start_time
+            int num_rollouts, turn
+            Node node
+            GameState state
+            int outcome
+            np.ndarray[DTYPE_t, ndim=1] red_rave_ptsx, red_rave_ptsy, blue_rave_ptsx, blue_rave_ptsy
 
         start_time = time()
         num_rollouts = 0
@@ -284,16 +359,17 @@ cdef class QRAVEEngine():
         while time() - start_time < time_budget:
             node, state = self.select_node()
             turn = state.turn()
-            outcome, players_moves, red_rave_pts, blue_rave_pts = QRAVEEngine.roll_out(state)
-            self.backprop(node, turn, outcome, players_moves, red_rave_pts, blue_rave_pts)
+            outcome, players_moves, red_rave_ptsx, red_rave_ptsy, blue_rave_ptsx, blue_rave_ptsy = roll_out(state)
+            self.backprop(node, turn, outcome, players_moves, red_rave_ptsx, red_rave_ptsy, blue_rave_ptsx, blue_rave_ptsy)
             num_rollouts += 1
+
         run_time = time() - start_time
         node_count = self.tree_size()
         self.run_time = run_time
         self.node_count = node_count
         self.num_rollouts = num_rollouts
 
-    def select_node(self):
+    cdef tuple select_node(self):
         """
         Select a node in the tree to preform a single simulation from.
         """
@@ -309,12 +385,12 @@ cdef class QRAVEEngine():
         state = deepcopy(self.root_state)
 
         # stop if we reach a leaf node
-        while len(node.children) != 0:
+        while node.children:
             n_values = [(n.value(), n) for n in node.children.values()]
             max_value = max(n_values, key=itemgetter(0))[0]
             n_values = [n[1] for n in n_values if n[0] == max_value]
 
-            node = choice(n_values)
+            node = cchoice(n_values)
             state.play(node.move)
 
             # if some child node has not been explored select it before expanding
@@ -324,58 +400,25 @@ cdef class QRAVEEngine():
 
         # if we reach a leaf node generate its children and return one of them
         # if the node is terminal, just return the terminal node
-        if QRAVEEngine.expand(node, state):
-            node = choice(list(node.children.values()))
+        if expand(node, state):
+            node = cchoice(list(node.children.values()))
             state.play(node.move)
         return node, state
 
-    @staticmethod
-    def expand(parent, state):
-        """
-        Generate the children of the passed "parent" node based on the available
-        moves in the passed gamestate and add them to the tree.
-
-        Returns:
-            object:
-        """
-        children = []
-        if state.winner() != GameMeta.PLAYERS["none"]:
-            # game is over at this node so nothing to expand
-            return False
-
-        for move in state.moves():
-            children.append(Node(move, parent))
-
-        parent.add_children(children)
-        return True
-
-    @staticmethod
-    def roll_out(state):
-        """
-        Simulate a random game except that we play all known critical
-        cells first, return the winning player and record critical cells at the end.
-
-        """
-        moves = state.moves()
-        while state.winner() == GameMeta.PLAYERS["none"]:
-            move = choice(moves)
-            state.play(move)
-            moves.remove(move)
-
-        players_moves = state.get_rb_played()
-
-        blue_rave_pts = [(x,y) for x,y in zip(*where(state.board == GameMeta.PLAYERS["blue"]))]
-        red_rave_pts = [(x,y) for x,y in zip(*where(state.board == GameMeta.PLAYERS["red"]))]
-
-        return state.winner(), players_moves, red_rave_pts, blue_rave_pts
-
-    cpdef void backprop(self, Node node, int turn, int outcome, tuple players_moves, list red_rave_pts, list blue_rave_pts):
+    @cython.boundscheck(False) # turn off bounds-checking for entire function
+    @cython.wraparound(False)
+    cdef void backprop(self, Node node, int turn, int outcome, tuple players_moves, np.ndarray[DTYPE_t, ndim=1] red_rave_ptsx, np.ndarray[DTYPE_t, ndim=1] red_rave_ptsy, np.ndarray[DTYPE_t, ndim=1] blue_rave_ptsx, np.ndarray[DTYPE_t, ndim=1] blue_rave_ptsy):
         """
         Update the node statistics on the path from the passed node to root to reflect
         the outcome of a randomly simulated playout.
         """
         # note that reward is calculated for player who just played
         # at the node and not the next player to play
+        cdef:
+            int index
+            double temp_reward
+            (int, int) point
+
         reward = -1 if outcome == turn else 1
 
         self.rs1.update(players_moves[0])
@@ -384,21 +427,23 @@ cdef class QRAVEEngine():
         qb = self.compute_reward(players_moves)
 
         if self.num_rollouts == 0:
-            self.rs1 = RollingStatistic()
-            self.rs2 = RollingStatistic()
+            self.rs1.clear()
+            self.rs2.clear()
 
         while node != None:
             if turn == GameMeta.PLAYERS["red"]:
                 temp_reward = reward + (reward * self.a_const * qb[0])
                 node.rave_reward_average += temp_reward
-                for point in red_rave_pts:
+                for index in range(red_rave_ptsx.shape[0]):
+                    point = (red_rave_ptsx[index], red_rave_ptsy[index])
                     if point in node.children:
                         node.children[point].rave_reward_average += -temp_reward
                         node.children[point].rave_counter_visits += 1
             else:
                 temp_reward = reward + (reward * self.a_const * qb[1])
                 node.rave_reward_average += temp_reward
-                for point in blue_rave_pts:
+                for index in range(blue_rave_ptsx.shape[0]):
+                    point = (blue_rave_ptsx[index], blue_rave_ptsy[index])
                     if point in node.children:
                         node.children[point].rave_reward_average += -temp_reward
                         node.children[point].rave_counter_visits += 1
@@ -408,17 +453,19 @@ cdef class QRAVEEngine():
             turn = GameMeta.PLAYERS['red'] if turn == GameMeta.PLAYERS['blue'] else GameMeta.PLAYERS['blue']
             reward = -reward
             node = node.parent
-            # Add clear_rave_pts here
 
     cpdef tuple statistics(self):
         return self.num_rollouts, self.node_count, self.run_time
 
-    cpdef tuple compute_reward(self, tuple player_length):
+    cdef tuple compute_reward(self, tuple player_length):
+        cdef:
+            double mean1, mean2, deviation1, deviation2, mean_offset1, mean_offset2, lmdb1, lmdb2, bonus1, bonus2
+
         mean1 = self.rs1.mean
         mean2 = self.rs2.mean
 
-        deviation1 = self.rs1.stddev
-        deviation2 = self.rs2.stddev
+        deviation1 = self.rs1.std()
+        deviation2 = self.rs2.std()
 
         mean_offset1 = mean1 - player_length[0]
         mean_offset2 = mean2 - player_length[1]
@@ -427,7 +474,7 @@ cdef class QRAVEEngine():
         lmdb2 = mean_offset2 / deviation2 if deviation2 != 0 else 0
 
         bonus1 = -1 + (2 / (1 + exp(-lmdb1 * self.k_const)))
-        bonus2 = -1 + (2 / (1 + exp(-lmdb2 * self.k_const)))
+        bonus2 = -1 + (2 / (1 + exp(-lmdb2 * self.k_const)))          
 
         return (bonus1, bonus2)
 

@@ -142,7 +142,7 @@ class MCTSAgent():
         '''
         # TODO: Implement a way to decide if the agent should swap
         if action:
-            return True
+            return False
         return False
 
     def choose_move(self) -> None:
@@ -151,7 +151,7 @@ class MCTSAgent():
         Perform a search for a limited amount of time
         Get the best move and send it
         """
-        self.agent.search(self.time_limit)
+        self.agent.search(self.get_time_limit())
 
         # Performance measures
         num_rollouts, node_count, run_time = self.agent.statistics()
@@ -181,9 +181,21 @@ class MCTSAgent():
                 self.agent.move((action[0], action[1]))
             else:
                 self.choose_move()
+        elif self.colour == "R" and self.turn_count == 0:
+            self.agent.move((1, 3))
+            self.s.sendall(bytes(f"{1},{3}\n", "utf-8"))
         else:
             self.choose_move()
         self.turn_count += 1
+
+    def get_time_limit(self):
+        return 7
+        if self.turn_count <= 10:
+            return 9
+        elif self.turn_count <= 20:
+            return 6
+        else:
+            return 3
 
     def opp_colour(self):
         """

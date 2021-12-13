@@ -1,3 +1,6 @@
+# keep this line for cython directives
+
+
 cdef class UnionFind:
     """
     Notes:
@@ -9,15 +12,16 @@ cdef class UnionFind:
         groups (dict): Stores the groups and chain of cells
         ignored (list): The neighborhood of board edges has to be ignored
     """
-    cdef public:
-        dict parent
-        dict rank
-        dict groups
-        int ign1
-        int ign2
+    cdef:
+        cdef int n_points
+        cdef int * parent
+        cdef int * rank
+        cdef int _n_sets
+        cdef ign1
+        cdef ign2
 
-    cpdef bint join(self, x, y)
-    cpdef find(self, x)
-    cpdef bint connected(self, x, y)
-    cpdef void set_ignored_elements(self, ignore)
-    cpdef dict get_groups(self)
+    cdef int _find(self, int i)
+    cpdef bint join(self, (int ,int) x, (int, int) y)
+    cpdef int find(self, int x)
+    cpdef bint connected(self, (int, int) x, (int, int) y)
+    cdef UnionFind _copy(self)

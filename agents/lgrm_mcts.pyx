@@ -1,3 +1,5 @@
+# keep this line for cython directives
+
 from copy import deepcopy
 from math import log, sqrt
 from queue import Queue

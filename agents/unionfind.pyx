@@ -1,119 +1,111 @@
 ###############################################################################################
 # Union Find
 ###############################################################################################
+# keep this line for cython directives
 from copy import deepcopy 
 
-cdef class UnionFind:
-    """
-    Notes:
-        unionfind data structure specialized for finding hex connections.
-        Implementation inspired by UAlberta CMPUT 275 2015 class notes.
-    Attributes:
-        parent (dict): Each group parent
-        rank (dict): Each group rank
-        groups (dict): Stores the groups and chain of cells
-        ignored (list): The neighborhood of board edges has to be ignored
-    """
-    
-    #cpdef __deepcopy__(self, memo_dictionary):
-    #     res = UnionFind()
-    #     res.parent = self.parent.copy()
-    #     res.rank = self.rank.copy()
-    #     res.groups = self.groups.copy()
-    #     res.ignored = self.ignored[:]
-    #     return res
+cimport cython
+from libc.stdlib cimport malloc, free
 
-    def __init__(self, remaining_args = None):
-        """
-        Initialize parent and rank as empty dictionaries, we will
-        lazily add items as necessary.
-        """
-        if not remaining_args:
-            self.parent = {}
-            self.rank = {}
-            self.groups = {}
-            self.ign1 = -1
-            self.ign2 = -1
 
-    cpdef bint join(self, x, y):
-        """
-        Merge the groups of x and y if they were not already,
-        return False if they were already merged, true otherwise
-        Args:
-            x (tuple): game board cell
-            y (tuple): game board cell
-        """
-        rep_x = self.find(x)
-        rep_y = self.find(y)
+cdef (int, int) itot(int i):
+    '''
+    Converts an integer to a tuple
 
-        if rep_x == rep_y:
-            return False
-        if self.rank[rep_x] < self.rank[rep_y]:
-            self.parent[rep_x] = rep_y
+        Parameters:
+                i (int): Integer to be converted
 
-            self.groups[rep_y].extend(self.groups[rep_x])
-            del self.groups[rep_x]
-        elif self.rank[rep_x] > self.rank[rep_y]:
-            self.parent[rep_y] = rep_x
-
-            self.groups[rep_x].extend(self.groups[rep_y])
-            del self.groups[rep_y]
-        else:
-            self.parent[rep_x] = rep_y
-            self.rank[rep_y] += 1
-
-            self.groups[rep_y].extend(self.groups[rep_x])
-            del self.groups[rep_x]
-
-        return True
-
-    cpdef find(self, x):
-        """
-        Get the representative element associated with the set in
-        which element x resides. Uses grandparent compression to compress
-        the tree on each find operation so that future find operations are faster.
-        Args:
-            x (tuple): game board cell
-        """
-        if x not in self.parent:
-            self.parent[x] = x
-            self.rank[x] = 0
-            if x == self.ign1 or x == self.ign2:
-                self.groups[x] = []
-            else:
-                self.groups[x] = [x]
-
-        px = self.parent[x]
-        if x == px:
-            return x
-
-        gx = self.parent[px]
-        if gx == px:
-            return px
-
-        self.parent[x] = gx
-
-        return self.find(gx)
-
-    cpdef bint connected(self, x, y):
-        """
-        Check if two elements are in the same group.
-        Args:
-            x (tuple): game board cell
-            y (tuple): game board cell
-        """
-        return self.find(x) == self.find(y)
-
-    cpdef void set_ignored_elements(self, ignore):
-        """
-        Elements in ignored, edges has to be ignored
-        """
-        self.ign1 = ignore[0]
-        self.ign2 = ignore[1]
-
-    cpdef dict get_groups(self):
-        """
         Returns:
-            Groups
-        """
-        return self.groups
+                (tuple): Tuple with the integer
+    '''
+    return (int(i // 13), i % 13)
+
+cdef int ttoi((int, int) t):
+    '''
+    Converts a tuple to an integer
+
+        Parameters:
+                t (tuple): Tuple to be converted
+
+        Returns:
+                (int): Integer with the tuple
+    '''
+    return t[0] * 13 + t[1]
+
+
+
+cdef class UnionFind:
+    def __cinit__(self, n_points=169, init = True):
+        self.n_points = n_points
+        self.parent = <int *> malloc(n_points * sizeof(int))
+        self.rank = <int *> malloc(n_points * sizeof(int))
+        
+        cdef int i
+        if init:
+            for i in range(n_points):
+                self.parent[i] = i
+
+        self._n_sets = n_points
+
+    def __dealloc__(self):
+        free(self.parent)
+        free(self.rank)
+
+    cdef UnionFind _copy(self):
+        cdef UnionFind copy
+        copy = UnionFind(self.n_points, False)
+        copy._n_sets = self._n_sets
+
+        cdef int i
+        for i in range(self.n_points):
+            copy.parent[i] = self.parent[i]
+            copy.rank[i] = self.rank[i]
+        return copy
+        
+    def __deepcopy__(self, memo):
+        return self._copy()
+
+    cdef int _find(self, int i):
+        if self.parent[i] == i:
+            return i
+        else:
+            self.parent[i] = self.find(self.parent[i])
+            return self.parent[i]
+
+    cpdef int find(self, int i): 
+        return self._find(i)
+
+    cpdef bint join(self, (int, int) i1, (int, int) j1):
+        cdef int i 
+        cdef int j
+
+        i = ttoi(i1)
+        j = ttoi(j1)
+
+        cdef int root_i, root_j
+        root_i = self.find(i)
+        root_j = self.find(j)
+        if root_i != root_j:
+            self._n_sets -= 1
+            if self.rank[root_i] < self.rank[root_j]:
+                self.parent[root_i] = root_j
+                return root_j
+            elif self.rank[root_i] > self.rank[root_j]:
+                self.parent[root_j] = root_i
+                return root_i
+            else:
+                self.parent[root_i] = root_j
+                self.rank[root_j] += 1
+                return root_j
+        else:
+            return root_i
+
+    cpdef bint connected(self, (int, int) i1, (int, int) j1):
+        cdef int i 
+        cdef int j
+
+        i = ttoi(i1)
+        j = ttoi(j1)
+
+        return self.find(i) == self.find(j)
+

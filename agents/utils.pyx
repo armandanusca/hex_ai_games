@@ -18,4 +18,3 @@ cpdef tuple extract_last_move_from_board(board):
     return (-1, -1)
 
 
-

@@ -1,3 +1,5 @@
+# keep this line for cython directives
+
 cdef class GameState:
     """
     Stores information representing the current state of a game of hex, namely
@@ -25,8 +27,7 @@ cdef class GameState:
 
     cpdef void play(self, tuple cell)
     cpdef dict get_num_played(self)
-    cpdef dict get_red_groups(self)
-    cpdef dict get_blue_groups(self)
+
     cpdef void place_red(self, tuple cell)
     cpdef void place_blue(self, tuple cell)
     cpdef int turn(self)

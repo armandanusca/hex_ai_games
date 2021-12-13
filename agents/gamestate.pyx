@@ -1,4 +1,6 @@
 
+# keep this line for cython directives
+
 from numpy import zeros, int_
 from unionfind cimport UnionFind
 from meta import GameMeta
@@ -37,8 +39,6 @@ cdef class GameState:
         self.blue_played = 0
         self.red_groups = UnionFind()
         self.blue_groups = UnionFind()
-        self.red_groups.set_ignored_elements([GameMeta.EDGE1, GameMeta.EDGE2])
-        self.blue_groups.set_ignored_elements([GameMeta.EDGE1, GameMeta.EDGE2])
 
     def __deepcopy__(self, memo):
         """
@@ -51,6 +51,7 @@ cdef class GameState:
         new_state.blue_played = self.blue_played
         new_state.red_groups = deepcopy(self.red_groups)
         new_state.blue_groups = deepcopy(self.blue_groups)
+
         return new_state
 
     cpdef void play(self, tuple cell):
@@ -68,18 +69,6 @@ cdef class GameState:
 
     cpdef dict get_num_played(self):
         return {'red': self.red_played, 'blue': self.blue_played}
-
-    cpdef dict get_red_groups(self):
-        """
-        Returns (dict): group of red groups for unionfind check
-        """
-        return self.red_groups.get_groups()
-
-    cpdef dict get_blue_groups(self):
-        """
-        Returns (dict): group of red groups for unionfind check
-        """
-        return self.blue_groups.get_groups()
 
     cpdef void place_red(self, tuple cell):
         """
@@ -174,6 +163,7 @@ cdef class GameState:
             for x in range(self.size):
                 if self.board[x, y] == GameMeta.PLAYERS['none']:
                     moves.append((x, y))
+
         return moves
 
     cpdef tuple get_rb_played(self):

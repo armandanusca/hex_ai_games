@@ -1,3 +1,5 @@
+# keep this line for cython directives
+
 from copy import deepcopy
 from libc.math cimport sqrt, log
 from queue import Queue
@@ -83,7 +85,7 @@ cdef class Node:
         for child in children:
             self.children[child.move] = child
 
-    cpdef float value(self, float explore = MCTSMeta.EXPLORATION, float rave_const = MCTSMeta.RAVE_CONST):
+    cpdef float value(self, float explore = MCTSMeta.EXPLORATION, double rave_const = 0.00000016):
         '''
         Calculate the evaluation formula applied to the Game Tree
 
@@ -104,7 +106,8 @@ cdef class Node:
             return 0 if explore == 0 else GameMeta.INF
         else:
             # rave valuation:
-            alpha = fmaxf(0, (rave_const - self.counter_visits) / rave_const)
+            #alpha = fmaxf(0, (rave_const - self.counter_visits) / rave_const)
+            alpha = self.rave_counter_visits / (self.rave_counter_visits + self.counter_visits + 4 * self.rave_counter_visits * self.counter_visits * rave_const)
             UCT = self.reward_average / self.counter_visits + explore * sqrt(
                 2 * log(self.parent.counter_visits) / self.counter_visits)
             AMAF = self.rave_reward_average / self.rave_counter_visits if self.rave_counter_visits != 0 else 0

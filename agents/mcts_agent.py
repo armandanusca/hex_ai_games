@@ -2,7 +2,7 @@
 # Group 4 - A Monte Carlo Tree Search based agent for playing
 # hex
 # -----------------------------------------------------------
-
+# keep this line for cython directives
 import socket
 
 from gamestate import GameState
@@ -52,7 +52,7 @@ class MCTSAgent():
 
     host = "127.0.0.1"
     port = 1234
-    time_limit = 4
+    time_limit = 7
     agent = None
 
     def __init__(self, board_size=11):
@@ -181,6 +181,9 @@ class MCTSAgent():
                 self.agent.move((action[0], action[1]))
             else:
                 self.choose_move()
+        elif self.colour == "R" and self.turn_count == 0:
+            self.agent.move((1, 3))
+            self.s.sendall(bytes(f"{1},{3}\n", "utf-8"))
         else:
             self.choose_move()
         self.turn_count += 1

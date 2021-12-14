@@ -41,7 +41,7 @@ class Node:
         Add a list of nodes to the children of this node.
     """
 
-    def __init__(self, move: tuple = None, parent: object = None):
+    def __init__(self, explore: float = MCTSMeta.EXPLORATION, rave_const: float = MCTSMeta.RAVE_CONST, move: tuple = None, parent: object = None):
         """
         Initialize a new node with optional move and parent and initially empty
         children list and rollout statistics and unspecified outcome.
@@ -50,6 +50,9 @@ class Node:
                 move (tuple): the move that generated the current node
                 parent (Node): parent node
         """
+        self.explore = explore
+        self.rave_const = rave_const
+
         self.move = move
         self.parent = parent
         self.children = {}
@@ -69,7 +72,7 @@ class Node:
             self.children[child.move] = child
 
     @property
-    def value(self, explore: float = MCTSMeta.EXPLORATION, rave_const: float = MCTSMeta.RAVE_CONST) -> float:
+    def value(self) -> float:
         '''
         Calculate the evaluation formula applied to the Game Tree
 
@@ -86,11 +89,11 @@ class Node:
 
         # unless explore is set to zero, maximally favor unexplored nodes
         if self.counter_visits == 0:
-            return 0 if explore == 0 else GameMeta.INF
+            return 0 if self.explore == 0 else GameMeta.INF
         else:
             # rave valuation:
-            alpha = max(0, (rave_const - self.counter_visits) / rave_const)
-            UCT = self.reward_average / self.counter_visits + explore * sqrt(
+            alpha = max(0, (self.rave_const - self.counter_visits) / self.rave_const)
+            UCT = self.reward_average / self.counter_visits + self.explore * sqrt(
                 2 * log(self.parent.counter_visits) / self.counter_visits)
             AMAF = self.rave_reward_average / self.rave_counter_visits if self.rave_counter_visits != 0 else 0
             return (1 - alpha) * UCT + alpha * AMAF
@@ -152,9 +155,11 @@ class RaveMCTSEngine():
         Count nodes in tree by BFS.
     """
 
-    def __init__(self, state: GameState = GameState(11)):
+    def __init__(self, state: GameState = GameState(11), explore: float = MCTSMeta.EXPLORATION, rave_const: float = MCTSMeta.RAVE_CONST):
+        self.explore = explore
+        self.rave_const = rave_const
         self.root_state = deepcopy(state)
-        self.root = Node()
+        self.root = Node(explore, rave_const)
         self.run_time = 0
         self.node_count = 0
         self.num_rollouts = 0
@@ -166,7 +171,7 @@ class RaveMCTSEngine():
         state.
         """
         self.root_state = deepcopy(state)
-        self.root = Node()
+        self.root = Node(self.explore, self.rave_const)
 
     def move(self, move: tuple) -> None:
         """
@@ -186,7 +191,7 @@ class RaveMCTSEngine():
         # if for whatever reason the move is not in the children of
         # the root just throw out the tree and start over
         self.root_state.play(move)
-        self.root = Node()
+        self.root = Node(self.explore, self.rave_const)
 
     def best_move(self) -> tuple:
         """
@@ -253,8 +258,7 @@ class RaveMCTSEngine():
             state.play(node.move)
         return node, state
 
-    @staticmethod
-    def expand(parent: Node, state: GameState) -> bool:
+    def expand(self, parent: Node, state: GameState) -> bool:
         """
         Generate the children of the passed "parent" node based on the available
         moves in the passed gamestate and add them to the tree.
@@ -268,7 +272,7 @@ class RaveMCTSEngine():
             return False
 
         for move in state.moves():
-            children.append(Node(move, parent))
+            children.append(Node(self.explore, self.rave_const, move, parent))
 
         parent.add_children(children)
         return True

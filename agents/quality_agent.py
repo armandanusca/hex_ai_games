@@ -52,7 +52,7 @@ class MCTSAgent():
 
     host = "127.0.0.1"
     port = 1234
-    time_limit = 4
+    time_limit = 7
     agent = None
 
     def __init__(self, board_size=11):
@@ -189,13 +189,15 @@ class MCTSAgent():
         self.turn_count += 1
 
     def get_time_limit(self):
-        return 7
+        return 8
         if self.turn_count <= 10:
-            return 9
-        elif self.turn_count <= 20:
-            return 6
-        else:
+            return 15
+        elif self.turn_count <= 30:
+            return 8
+        elif self.turn_count <= 50:
             return 3
+        else:
+            return 1
 
     def opp_colour(self):
         """

@@ -151,7 +151,7 @@ class Protocol():
             Protocol.sockets[Colour.BLUE], Protocol.sockets[Colour.RED]
 
     @staticmethod
-    def close(kill_children=True, verbose=False):
+    def close(kill_children=True, verbose=True):
         """Closes the connection. If kill_children=True, it will also forcibly
         terminate the agents. Otherwise, it will block the thread until they
         have terminated on their own.
@@ -185,6 +185,8 @@ class Protocol():
                 if (verbose):
                     print(
                         f"{x['name']} connection was already closed.")
+            
+            Protocol.sockets[colour] = {}
 
         # close server
         try:

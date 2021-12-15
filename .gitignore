@@ -134,3 +134,4 @@ agents/**.html
 agents/**_old
 agents/**.c
 agents/**.pyd
+logs/log.csv

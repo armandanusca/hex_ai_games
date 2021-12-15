@@ -53,7 +53,7 @@ class MCTSAgent():
 
     host = "127.0.0.1"
     port = 1234
-    time_limit = 1
+    time_limit = 7
     agent = None
 
     def __init__(self, board_size=11):
@@ -192,7 +192,14 @@ class MCTSAgent():
         self.turn_count += 1
 
     def get_time_limit(self):
-        return 7
+        if self.turn_count <= 10:
+            return 15
+        elif self.turn_count <= 30:
+            return 8
+        elif self.turn_count <= 50:
+            return 3
+        else:
+            return 1
 
     def test_swap(self, action) -> bool:
         second_raw_list = [9, 10]

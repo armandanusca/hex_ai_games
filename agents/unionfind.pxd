@@ -21,7 +21,6 @@ cdef class UnionFind:
         cdef ign2
 
     cdef int _find(self, int i)
-    cpdef bint join(self, (int ,int) x, (int, int) y)
-    cpdef int find(self, int x)
-    cpdef bint connected(self, (int, int) x, (int, int) y)
+    cpdef bint join(self, tuple x, tuple y)
+    cpdef bint connected(self, tuple x, tuple y)
     cdef UnionFind _copy(self)

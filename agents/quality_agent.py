@@ -8,6 +8,7 @@ import socket
 from gamestate import GameState
 from quality_rave import QRAVEEngine
 from utils import extract_last_move_from_board
+from random import choice
 
 
 class MCTSAgent():
@@ -52,7 +53,7 @@ class MCTSAgent():
 
     host = "127.0.0.1"
     port = 1234
-    time_limit = 4
+    time_limit = 1
     agent = None
 
     def __init__(self, board_size=11):
@@ -181,21 +182,49 @@ class MCTSAgent():
                 self.agent.move((action[0], action[1]))
             else:
                 self.choose_move()
-        elif self.colour == "R" and self.turn_count == 0:
-            self.agent.move((1, 3))
-            self.s.sendall(bytes(f"{1},{3}\n", "utf-8"))
         else:
-            self.choose_move()
+            if self.turn_count == 0:
+                first_move = self.opening_move()
+                self.agent.move((first_move[0],first_move[1]))
+                self.s.sendall(bytes(f"{first_move[0]},{first_move[1]}\n", "utf-8"))
+            else:
+                self.choose_move()
         self.turn_count += 1
 
     def get_time_limit(self):
         return 7
-        if self.turn_count <= 10:
-            return 9
-        elif self.turn_count <= 20:
-            return 6
-        else:
-            return 3
+
+    def test_swap(self, action) -> bool:
+        second_raw_list = [9, 10]
+        ninth_raw_list = [0, 1]
+
+        first_raw_and_last_columns_to_swap = [3, 4 , 5, 6, 7]
+        must_swap_raw = [2, 3, 4, 5, 6, 7, 8]
+        must_swap_column =  [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        #first raw
+        if action[0] == 0 and action[1] == 10:
+            return True
+        #second raw
+        if action[0] == 1 and action[1] in second_raw_list:
+            return True
+        #ninth raw
+        if action[0] == 9 and (action[1] in ninth_raw_list):
+            return True
+        #tenth raw
+        if action[0] == 10 and action[1] == 0:
+                    return True
+        #centre
+        if (action[0] in must_swap_raw) and (action[1] in must_swap_column):
+            return True
+        if(action[0] in first_raw_and_last_columns_to_swap) and (action[1] in [0,10]):
+            return True
+        return False
+
+    def opening_move(self):
+        first_moves_list = [[1, 1], [1, 0], [9, 9], [9, 10],
+                            [3, 0], [4, 0], [5, 0], [6, 0], [7, 0],
+                            [3, 10], [4, 10], [5, 10], [6, 10], [7, 10]]
+        return choice(first_moves_list)
 
     def opp_colour(self):
         """

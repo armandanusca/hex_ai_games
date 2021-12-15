@@ -77,6 +77,8 @@ cdef bint expand(Node parent, GameState state):
     parent.add_children(children)
     return True
 
+@cython.boundscheck(False)
+@cython.wraparound(False)
 cdef tuple roll_out(state):
         """
         Simulate a random game except that we play all known critical
@@ -198,10 +200,6 @@ cdef class Node:
                 2 * log(self.parent.counter_visits) / self.counter_visits)
             AMAF = self.rave_reward_average / self.rave_counter_visits if self.rave_counter_visits != 0 else 0
             v = (1 - alpha) * UCT + alpha * AMAF
-            #if v != v:
-            #    print("nan")
-            #    print(alpha, UCT, AMAF)
-            #    print(self.rave_reward_average)
             return (1 - alpha) * UCT + alpha * AMAF
 
 
@@ -314,7 +312,9 @@ cdef class QRAVEEngine():
         # the root just throw out the tree and start over
         self.root_state.play(move)
         self.root = Node()
-
+    
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
     cpdef best_move(self):
         """
         Return the best move according to the current tree.
@@ -326,6 +326,8 @@ cdef class QRAVEEngine():
             list max_nodes
             int max_value
             Node bestchild
+            Node n
+            tuple t
 
         if self.root_state.winner() != GameMeta.PLAYERS['none']:
             return GameMeta.GAME_OVER
@@ -333,12 +335,14 @@ cdef class QRAVEEngine():
         # choose the move of the most simulated node breaking ties randomly
         max_nodes = [(n.counter_visits, n) for n in self.root.children.values()]
         max_value = max(max_nodes, key=itemgetter(0))[0]
-        max_nodes = [n[1] for n in max_nodes if n[0] == max_value]
+        max_nodes = [t[1] for t in max_nodes if t[0] == max_value]
         #max_value = max(self.root.children.values(), key=lambda n: n.counter_visits).counter_visits
         #max_nodes = [n for n in self.root.children.values() if n.counter_visits == max_value]
         bestchild = cchoice(max_nodes)
         return bestchild.move
-
+    
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
     cpdef void search(self, int time_budget):
         """
         Search and update the search tree for a specified amount of time in seconds.
@@ -369,6 +373,8 @@ cdef class QRAVEEngine():
         self.node_count = node_count
         self.num_rollouts = num_rollouts
 
+    @cython.boundscheck(False)
+    @cython.wraparound(False)
     cdef tuple select_node(self):
         """
         Select a node in the tree to preform a single simulation from.
@@ -379,7 +385,8 @@ cdef class QRAVEEngine():
             GameState state
             list n_values
             float max_value
-
+            Node n
+            tuple t
 
         node = self.root
         state = deepcopy(self.root_state)
@@ -388,7 +395,7 @@ cdef class QRAVEEngine():
         while node.children:
             n_values = [(n.value(), n) for n in node.children.values()]
             max_value = max(n_values, key=itemgetter(0))[0]
-            n_values = [n[1] for n in n_values if n[0] == max_value]
+            n_values = [t[1] for t in n_values if t[0] == max_value]
 
             node = cchoice(n_values)
             state.play(node.move)
@@ -405,7 +412,7 @@ cdef class QRAVEEngine():
             state.play(node.move)
         return node, state
 
-    @cython.boundscheck(False) # turn off bounds-checking for entire function
+    @cython.boundscheck(False)
     @cython.wraparound(False)
     cdef void backprop(self, Node node, int turn, int outcome, tuple players_moves, np.ndarray[DTYPE_t, ndim=1] red_rave_ptsx, np.ndarray[DTYPE_t, ndim=1] red_rave_ptsy, np.ndarray[DTYPE_t, ndim=1] blue_rave_ptsx, np.ndarray[DTYPE_t, ndim=1] blue_rave_ptsy):
         """

@@ -67,9 +67,6 @@ cdef class GameState:
             self.place_blue(cell)
             self.to_play = GameMeta.PLAYERS['red']
 
-    cpdef dict get_num_played(self):
-        return {'red': self.red_played, 'blue': self.blue_played}
-
     cpdef void place_red(self, tuple cell):
         """
         Place a red stone regardless of whose turn it is.
@@ -117,17 +114,6 @@ cdef class GameState:
         Return the player with the next move.
         """
         return self.to_play
-
-    cpdef void set_turn(self, int player):
-        """
-        Set the player to take the next move.
-        Raises:
-            ValueError if player turn is not 1 or 2
-        """
-        if player in GameMeta.PLAYERS.values() and player != GameMeta.PLAYERS['none']:
-            self.to_play = player
-        else:
-            raise ValueError('Invalid turn: ' + str(player))
 
     cpdef int winner(self):
         """

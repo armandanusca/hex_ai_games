@@ -26,12 +26,10 @@ cdef class GameState:
         object blue_groups
 
     cpdef void play(self, tuple cell)
-    cpdef dict get_num_played(self)
 
     cpdef void place_red(self, tuple cell)
     cpdef void place_blue(self, tuple cell)
     cpdef int turn(self)
-    cpdef void set_turn(self, int player)
     cpdef int winner(self)
     cpdef list neighbors(self, tuple cell)
     cpdef list moves(self)

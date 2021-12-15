@@ -45,37 +45,37 @@ cdef class UnionFind:
             for i in range(n_points):
                 self.parent[i] = i
 
-        self._n_sets = n_points
-
     def __dealloc__(self):
         free(self.parent)
         free(self.rank)
 
+    @cython.wraparound(False)
+    @cython.boundscheck(False)
     cdef UnionFind _copy(self):
         cdef UnionFind copy
         copy = UnionFind(self.n_points, False)
-        copy._n_sets = self._n_sets
 
         cdef int i
         for i in range(self.n_points):
             copy.parent[i] = self.parent[i]
             copy.rank[i] = self.rank[i]
         return copy
-        
+    
     def __deepcopy__(self, memo):
         return self._copy()
 
+    @cython.wraparound(False)
+    @cython.boundscheck(False)
     cdef int _find(self, int i):
         if self.parent[i] == i:
             return i
         else:
-            self.parent[i] = self.find(self.parent[i])
+            self.parent[i] = self._find(self.parent[i])
             return self.parent[i]
 
-    cpdef int find(self, int i): 
-        return self._find(i)
-
-    cpdef bint join(self, (int, int) i1, (int, int) j1):
+    @cython.wraparound(False)
+    @cython.boundscheck(False)
+    cpdef bint join(self, tuple i1, tuple j1):
         cdef int i 
         cdef int j
 
@@ -83,29 +83,30 @@ cdef class UnionFind:
         j = ttoi(j1)
 
         cdef int root_i, root_j
-        root_i = self.find(i)
-        root_j = self.find(j)
+        root_i = self._find(i)
+        root_j = self._find(j)
         if root_i != root_j:
-            self._n_sets -= 1
             if self.rank[root_i] < self.rank[root_j]:
                 self.parent[root_i] = root_j
-                return root_j
+                return True
             elif self.rank[root_i] > self.rank[root_j]:
                 self.parent[root_j] = root_i
-                return root_i
+                return True
             else:
                 self.parent[root_i] = root_j
                 self.rank[root_j] += 1
-                return root_j
+                return True
         else:
-            return root_i
+            return False
 
-    cpdef bint connected(self, (int, int) i1, (int, int) j1):
+    @cython.wraparound(False)
+    @cython.boundscheck(False)
+    cpdef bint connected(self, tuple i1, tuple j1):
         cdef int i 
         cdef int j
 
         i = ttoi(i1)
         j = ttoi(j1)
 
-        return self.find(i) == self.find(j)
+        return self._find(i) == self._find(j)
 

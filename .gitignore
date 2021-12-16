@@ -127,3 +127,11 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+**test.bat**
+agents/build
+agents/**.html
+agents/**_old
+agents/**.c
+agents/**.pyd
+logs/log.csv

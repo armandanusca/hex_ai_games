@@ -2,16 +2,19 @@
 # Group 4 - A Monte Carlo Tree Search based agent for playing
 # hex
 # -----------------------------------------------------------
-# keep this line for cython directives
+
 import socket
 
 from gamestate import GameState
-from rave_mcts import RaveMCTSEngine
+from RootThreadingAgent import RootThreadingAgent
 from utils import extract_last_move_from_board
 
-from sys import argv, platform
-from os.path import realpath, sep
+import argparse
 
+parser = argparse.ArgumentParser(description='Parallelization Agent')
+parser.add_argument('--processes', '-p', type=int, default=1, dest = 'processes',
+                    help='Number f processes to use')
+args = parser.parse_args()
 
 class MCTSAgent():
     """
@@ -55,10 +58,10 @@ class MCTSAgent():
 
     host = "127.0.0.1"
     port = 1234
-    time_limit = 7
+    time_limit = 4
     agent = None
 
-    def __init__(self, explore=1, rave_const=1, board_size=11):
+    def __init__(self, board_size=11):
         """
         Constructs all the necessary attributes for the Agent object.
 
@@ -71,10 +74,6 @@ class MCTSAgent():
             age : int
                 age of the person
         """
-
-        self.explore = explore
-        self.rave_const = rave_const
-
         self.s = socket.socket(
             socket.AF_INET, socket.SOCK_STREAM
         )
@@ -84,7 +83,7 @@ class MCTSAgent():
         self.board_size = board_size
         self.colour = ""
         self.turn_count = 0
-        self.agent = RaveMCTSEngine(GameState(board_size), explore, rave_const)
+        self.agent = RootThreadingAgent(GameState(board_size), processes=args.processes)
 
     def run(self):
         """
@@ -126,7 +125,7 @@ class MCTSAgent():
                     self.colour = self.opp_colour()
                     if s[3] == self.colour:
                         last_move = extract_last_move_from_board(s[2])
-                        self.agent = RaveMCTSEngine(GameState(self.board_size), self.explore, self.rave_const)
+                        self.agent = RootThreadingAgent(GameState(11), processes=args.processes)
                         self.agent.move((last_move[0], last_move[1]))
                         self.make_move()
 
@@ -149,7 +148,7 @@ class MCTSAgent():
         '''
         # TODO: Implement a way to decide if the agent should swap
         if action:
-            return False
+            return True
         return False
 
     def choose_move(self) -> None:
@@ -160,14 +159,14 @@ class MCTSAgent():
         """
         self.agent.search(self.time_limit)
 
+
+        move = self.agent.best_move()
+        # print("Best move suggested: ", move)
+        self.agent.move(move)
+
         # Performance measures
         num_rollouts, node_count, run_time = self.agent.statistics()
         print(num_rollouts, node_count, run_time)
-
-        move = self.agent.best_move()
-        print("Best move suggested: ", move)
-        self.agent.move(move)
-
         # Send move
         self.s.sendall(bytes(f"{move[0]},{move[1]}\n", "utf-8"))
 
@@ -183,19 +182,13 @@ class MCTSAgent():
         if self.colour == "B" and self.turn_count == 0:
             if self.test_swap(action):
                 self.s.sendall(bytes("SWAP\n", "utf-8"))
-                self.agent = RaveMCTSEngine(GameState(11), self.explore, self.rave_const)
+                # self.colour = self.opp_colour()
+                self.agent = RootThreadingAgent(GameState(11), processes=args.processes)
                 self.agent.move((action[0], action[1]))
             else:
                 self.choose_move()
-        elif self.colour == "R" and self.turn_count == 0:
-            self.agent.move((1, 3))
-            self.s.sendall(bytes(f"{1},{3}\n", "utf-8"))
         else:
-            if self.turn_count == 0:
-                self.agent.move((1,3))
-                self.s.sendall(bytes("1,3\n", "utf-8"))
-            else:
-                self.choose_move()
+            self.choose_move()
         self.turn_count += 1
 
     def opp_colour(self):
@@ -210,16 +203,6 @@ class MCTSAgent():
         else:
             return "None"
 
-
 if (__name__ == "__main__"):
-
-    explore = 1
-    rave_const = 1
-    for argument in argv:
-        if ("rave_const=" in argument or "r=" in argument):
-            rave_const = float(argument.rsplit("=", 1)[1])
-        elif ("explore=" in argument or "e=" in argument):
-            explore = float(argument.rsplit("=", 1)[1])
-            
-    agent = MCTSAgent(explore, rave_const)
+    agent = MCTSAgent()
     agent.run()

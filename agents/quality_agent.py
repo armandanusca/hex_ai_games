@@ -2,15 +2,13 @@
 # Group 4 - A Monte Carlo Tree Search based agent for playing
 # hex
 # -----------------------------------------------------------
-# keep this line for cython directives
+
 import socket
 
 from gamestate import GameState
-from rave_mcts import RaveMCTSEngine
+from quality_rave import QRAVEEngine
 from utils import extract_last_move_from_board
-
-from sys import argv, platform
-from os.path import realpath, sep
+from random import choice
 
 
 class MCTSAgent():
@@ -58,7 +56,7 @@ class MCTSAgent():
     time_limit = 7
     agent = None
 
-    def __init__(self, explore=1, rave_const=1, board_size=11):
+    def __init__(self, board_size=11):
         """
         Constructs all the necessary attributes for the Agent object.
 
@@ -71,10 +69,6 @@ class MCTSAgent():
             age : int
                 age of the person
         """
-
-        self.explore = explore
-        self.rave_const = rave_const
-
         self.s = socket.socket(
             socket.AF_INET, socket.SOCK_STREAM
         )
@@ -84,7 +78,7 @@ class MCTSAgent():
         self.board_size = board_size
         self.colour = ""
         self.turn_count = 0
-        self.agent = RaveMCTSEngine(GameState(board_size), explore, rave_const)
+        self.agent = QRAVEEngine(GameState(board_size))
 
     def run(self):
         """
@@ -126,7 +120,7 @@ class MCTSAgent():
                     self.colour = self.opp_colour()
                     if s[3] == self.colour:
                         last_move = extract_last_move_from_board(s[2])
-                        self.agent = RaveMCTSEngine(GameState(self.board_size), self.explore, self.rave_const)
+                        self.agent = QRAVEEngine(GameState(11))
                         self.agent.move((last_move[0], last_move[1]))
                         self.make_move()
 
@@ -158,14 +152,14 @@ class MCTSAgent():
         Perform a search for a limited amount of time
         Get the best move and send it
         """
-        self.agent.search(self.time_limit)
+        self.agent.search(self.get_time_limit())
 
         # Performance measures
         num_rollouts, node_count, run_time = self.agent.statistics()
-        print(num_rollouts, node_count, run_time)
+        print(f'QB Agent: {num_rollouts}, {node_count}, {run_time}')
 
         move = self.agent.best_move()
-        print("Best move suggested: ", move)
+        # print("Best move suggested: ", move)
         self.agent.move(move)
 
         # Send move
@@ -183,20 +177,61 @@ class MCTSAgent():
         if self.colour == "B" and self.turn_count == 0:
             if self.test_swap(action):
                 self.s.sendall(bytes("SWAP\n", "utf-8"))
-                self.agent = RaveMCTSEngine(GameState(11), self.explore, self.rave_const)
+                # self.colour = self.opp_colour()
+                self.agent = QRAVEEngine(GameState(11))
                 self.agent.move((action[0], action[1]))
             else:
                 self.choose_move()
-        elif self.colour == "R" and self.turn_count == 0:
-            self.agent.move((1, 3))
-            self.s.sendall(bytes(f"{1},{3}\n", "utf-8"))
         else:
             if self.turn_count == 0:
-                self.agent.move((1,3))
-                self.s.sendall(bytes("1,3\n", "utf-8"))
+                first_move = self.opening_move()
+                self.agent.move((first_move[0],first_move[1]))
+                self.s.sendall(bytes(f"{first_move[0]},{first_move[1]}\n", "utf-8"))
             else:
                 self.choose_move()
         self.turn_count += 1
+
+    def get_time_limit(self):
+        if self.turn_count <= 10:
+            return 15
+        elif self.turn_count <= 30:
+            return 8
+        elif self.turn_count <= 50:
+            return 3
+        else:
+            return 1
+
+    def test_swap(self, action) -> bool:
+        second_raw_list = [9, 10]
+        ninth_raw_list = [0, 1]
+
+        first_raw_and_last_columns_to_swap = [3, 4 , 5, 6, 7]
+        must_swap_raw = [2, 3, 4, 5, 6, 7, 8]
+        must_swap_column =  [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        #first raw
+        if action[0] == 0 and action[1] == 10:
+            return True
+        #second raw
+        if action[0] == 1 and action[1] in second_raw_list:
+            return True
+        #ninth raw
+        if action[0] == 9 and (action[1] in ninth_raw_list):
+            return True
+        #tenth raw
+        if action[0] == 10 and action[1] == 0:
+                    return True
+        #centre
+        if (action[0] in must_swap_raw) and (action[1] in must_swap_column):
+            return True
+        if(action[0] in first_raw_and_last_columns_to_swap) and (action[1] in [0,10]):
+            return True
+        return False
+
+    def opening_move(self):
+        first_moves_list = [[1, 1], [1, 0], [9, 9], [9, 10],
+                            [3, 0], [4, 0], [5, 0], [6, 0], [7, 0],
+                            [3, 10], [4, 10], [5, 10], [6, 10], [7, 10]]
+        return choice(first_moves_list)
 
     def opp_colour(self):
         """
@@ -212,14 +247,5 @@ class MCTSAgent():
 
 
 if (__name__ == "__main__"):
-
-    explore = 1
-    rave_const = 1
-    for argument in argv:
-        if ("rave_const=" in argument or "r=" in argument):
-            rave_const = float(argument.rsplit("=", 1)[1])
-        elif ("explore=" in argument or "e=" in argument):
-            explore = float(argument.rsplit("=", 1)[1])
-            
-    agent = MCTSAgent(explore, rave_const)
+    agent = MCTSAgent()
     agent.run()
